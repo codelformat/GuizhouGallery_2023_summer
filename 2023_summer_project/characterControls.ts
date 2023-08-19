@@ -64,6 +64,9 @@ export class CharacterControls {
         //this.arrowHelper.setLength(1);
         //this.arrowHelper.
         //this.scene.add(this.arrowHelper);
+        this.raycaster.set(this.playerCollider.start, new THREE.Vector3(0, -1, 0));
+        this.raycaster.far = 1.5;
+        this.raycaster.near = 0.1;
 
         const geometry = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 32);
         const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
@@ -141,10 +144,10 @@ export class CharacterControls {
             this.updateCameraTarget(moveX, moveZ);
             this.collider.position.copy(this.cameraTarget);
 
-            if(keysPressed[V])
-            {
-                this.camera.position.copy(this.collider.position);
-            }
+            // if(keysPressed[V])
+            // {
+            //     this.camera.position.copy(this.collider.position);
+            // }
             // this.checkCameraCollision(this.collider);
         }
     }
@@ -179,7 +182,7 @@ export class CharacterControls {
 
         } else {
             this.orbitControl.minDistance = 2;
-           //  console.log("没有碰撞到");
+            //  console.log("没有碰撞到");
         }
         // this.arrowHelper.position.copy(collider.position);
     }
@@ -189,12 +192,14 @@ export class CharacterControls {
 
         this.playerOnFloor = false;
 
+
         if (result) {
             this.playerOnFloor = result.normal.y > 0;
-           //  console.log(result.normal);
+            console.log(result.normal);
 
-            if (!this.playerOnFloor) {
-                // playerVelocity.addScaledVector(result.normal, -result.normal.dot(playerVelocity));
+            if(!this.playerOnFloor)
+            {
+                // this.playerCollider.translate(new THREE.Vector3(0, -0.25, 0));
             }
 
             this.playerCollider.translate(result.normal.multiplyScalar(result.depth));
@@ -203,6 +208,9 @@ export class CharacterControls {
             this.collider.position.copy(new THREE.Vector3(this.playerCollider.start.x, this.playerCollider.start.y, this.playerCollider.start.z));
             // this.model.position.y -= 0.35;
         }
+
+
+
     }
 
     private updateCameraTarget(moveX: number, moveZ: number) {

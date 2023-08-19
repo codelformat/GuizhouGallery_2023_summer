@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import * as dat from 'dat.gui';
-import { CharacterControls } from './characterControls';
+import { CharacterControls } from './characterControls_v2';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { Octree } from 'three/examples/jsm/math/Octree.js';
+import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 // import { OctreeHelper } from 'three/examples/jsm/helpers/OctreeHelper.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import { Capsule } from 'three/examples/jsm/math/Capsule.js';
@@ -88,7 +89,7 @@ const sizes = {
 /**
  * Renderer
  */
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas, powerPreference:"high-performance" });
+const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas, powerPreference: "high-performance" });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
@@ -114,14 +115,20 @@ orbitControls.update();
  */
 const worldOctree = new Octree();
 
-const playerCollider = new Capsule(new THREE.Vector3(0, 0.35, 0), new THREE.Vector3(0, 2.15, 0), 0.5);
-playerCollider.translate(new THREE.Vector3(0.5, 0.1, -8.55));
+const playerCollider = new Capsule(new THREE.Vector3(0, 0.05, 0), new THREE.Vector3(0, 1.85, 0), 0.5);
+playerCollider.translate(new THREE.Vector3(0.5, 0, -8.55));
 
 const playerVelocity = new THREE.Vector3();
 const playerDirection = new THREE.Vector3();
 
 let playerOnFloor = false;
 let mouseTime = 0;
+
+/**
+ * Octree Helper
+ */
+
+
 
 
 /**
@@ -213,6 +220,18 @@ gltfLoader.load('展馆v1.2-5m层高-v2.3竖画.glb', (gltf) => {
 		}
 	});
 
+	const helper = new OctreeHelper(worldOctree);
+	helper.visible = false;
+	scene.add(helper);
+
+	const octreeHelperFolder = gui.addFolder('Octree Helper');
+	octreeHelperFolder.add({ debug: false }, 'debug')
+		.onChange(function (value) {
+
+			helper.visible = value;
+
+		});
+
 	animate();
 });
 
@@ -253,12 +272,12 @@ scene.add(axesHelper);
 /**
  * Lights
  */
-const rectWidth = 3.5;
-const rectHeight = 0.5;
-const rectIntensity = 0;
+const rectWidth: Number = 3.5;
+const rectHeight: Number = 0.5;
+const rectIntensity: Number = 0;
 
-const rectLights = [];
-const rectLightHelpers = [];
+const rectLights: THREE.RectAreaLight[] = [];
+const rectLightHelpers: THREE.RectAreaLightHelper[] = [];
 for (let i = 0; i < 10; i++) {
 	const rectLight = new THREE.RectAreaLight(0xffffff, rectIntensity, rectWidth, rectHeight);
 	rectLight.position.set(15.05, 7.5, -2.05);
@@ -401,7 +420,7 @@ for (const video of videos) {
 	video.video.load();
 	//video.video.autoplay = true;
 	//video.video.play();
-	
+
 
 	videoTextures.push(new THREE.VideoTexture(video.video));
 	videoMaterials.push(new THREE.MeshBasicMaterial({ map: videoTextures[videoTextures.length - 1] }));
@@ -469,10 +488,10 @@ document.addEventListener('keydown', (event) => {
 	//keyDisplayQueue.down(event.key)
 	if (event.shiftKey && characterControls) {
 		characterControls.switchRunToggle()
-	} else if(event.key.toLowerCase() == 'f' && videoPlayFlag) {
+	} else if (event.key.toLowerCase() == 'f' && videoPlayFlag) {
 		videos[DOCUMENTARY_VIDEO_INDEX].video.play();
 	}
-	 else {
+	else {
 		(keysPressed as any)[event.key.toLowerCase()] = true
 	}
 }, false);
@@ -555,16 +574,14 @@ function paintingInteractions() {
 		const intersects = raycaster.intersectObjects(raycast_objects);
 		// console.log(intersects);
 		if (intersects.length) {
-			if(intersects[0].object.name[0] === '竖')
-			{
+			if (intersects[0].object.name[0] === '竖') {
 				match_index = intersects[0].object.name.match(/\d+/);
 
 				pointIndex = Number(match_index[0]);
 				points[pointIndex].element.classList.add('visible')
 				videoPlayFlag = false;
 			}
-			else
-			{
+			else {
 				pointIndex = DOCUMENTARY_INDEX;
 				points[DOCUMENTARY_INDEX].element.classList.add('visible')
 				videoPlayFlag = true;
@@ -593,6 +610,39 @@ function paintingInteractions() {
 }
 
 
+function paintingInteractions_distBased() {
+	// Update points only when the scene is ready
+	if (sceneReady) {
+		let pointToCameraDistance: any[] = [];
+		for(const point of points){
+			const distance = model.position.distanceTo(point.position);
+			
+			if(distance < 3){
+				console.log(point.element.classList);
+				const raycaster_point = new THREE.Raycaster();
+				raycaster_point.set(point.position, model.position.clone().sub(point.position).normalize());
+				const intersects = raycaster_point.intersectObject(model);
+				console.log(intersects);
+				if(intersects.length != 1)
+				{
+					point.element.classList.remove('visible');
+				} else {
+					point.element.classList.add('visible');
+				}
+			}
+
+			
+			const screenPosition = point.position.clone()
+			screenPosition.project(camera)
+			const translateX = screenPosition.x * sizes.width * 0.5
+			const translateY = - screenPosition.y * sizes.height * 0.5
+			point.element.style.transform = `translateX(${translateX}px) translateY(${translateY}px)`
+		}
+		console.log('end');
+	}
+}
+
+
 const videoRaycaster = new THREE.Raycaster();
 let videoDirectionVector = new THREE.Vector3();
 function videoInteractions() {
@@ -614,7 +664,7 @@ function animate() {
 	if (characterControls) {
 		characterControls.update(deltaTime, keysPressed);
 		// playerCollisions();
-		model.position.set(playerCollider.start.x, playerCollider.start.y - 0.45, playerCollider.start.z);
+		model.position.set(playerCollider.start.x, playerCollider.start.y - 0.5, playerCollider.start.z);
 
 		// characterControls.updateCamera();
 	}
