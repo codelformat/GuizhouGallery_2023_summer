@@ -11,10 +11,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js';
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader"
 import { S } from './utils';
-// import 'regenerator-runtime/runtime';
+import { Interactions } from './interactions'
 
-
-// console.log(Ammo);
 /**
  * Constraints
  */
@@ -123,13 +121,6 @@ const playerDirection = new THREE.Vector3();
 
 let playerOnFloor = false;
 let mouseTime = 0;
-
-/**
- * Octree Helper
- */
-
-
-
 
 /**
  * Panorama Environment & Background
@@ -609,55 +600,230 @@ function paintingInteractions() {
 	}
 }
 
+const interactionUI = new Interactions();
+const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: string, img_src: string }> = {
+	1: {
+		title: "《中華-1》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-1介绍<br>
+		中華-1介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	2: {
+		title: "《中華-2》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-2介绍<br>
+		中華-2介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	3: {
+		title: "《中華-3》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-3介绍<br>
+		中華-3介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	4: {
+		title: "《中華-4》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-4介绍<br>
+		中華-4介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	5: {
+		title: "《中華-5》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-5介绍<br>
+		中華-5介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	6: {
+		title: "《中華-6》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-6介绍<br>
+		中華-6介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	7: {
+		title: "《中華-7》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-7介绍<br>
+		中華-7介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	8: {
+		title: "《中華-8》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-8介绍<br>
+		中華-8介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	9: {
+		title: "《中華-9》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-9介绍<br>
+		中華-9介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	10: {
+		title: "《中華-10》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-10介绍<br>
+		中華-10介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	11: {
+		title: "《中華-11》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	12: {
+		title: "《中華-12》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-12介绍<br>
+		中華-12绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	13: {
+		title: "《中華-13》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	14: {
+		title: "《中華-14》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	15: {
+		title: "《中華-15》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	16: {
+		title: "《中華-16》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	17: {
+		title: "《中華-17》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	18: {
+		title: "《中華-18》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	19: {
+		title: "《中華-19》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	20: {
+		title: "《中華-20》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	21: {
+		title: "《中華-21》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
+	22: {
+		title: "《中華-22》",
+		author: "安顺蜡染博物馆",
+		describe: `
+		中華-11介绍<br>
+		中華-11介绍<br>
+		`,
+		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
+	},
 
-function paintingInteractions_distBased() {
-	// Update points only when the scene is ready
-	if (sceneReady) {
-		let pointToCameraDistance: any[] = [];
-		for(const point of points){
-			const distance = model.position.distanceTo(point.position);
-			
-			if(distance < 3){
-				console.log(point.element.classList);
-				const raycaster_point = new THREE.Raycaster();
-				raycaster_point.set(point.position, model.position.clone().sub(point.position).normalize());
-				const intersects = raycaster_point.intersectObject(model);
-				console.log(intersects);
-				if(intersects.length != 1)
-				{
-					point.element.classList.remove('visible');
-				} else {
-					point.element.classList.add('visible');
-				}
-			}
+};
+const click_raycaster: THREE.Raycaster = new THREE.Raycaster();
+let mouse_point: THREE.Vector2 = new THREE.Vector2(0, 0);
+function paintingClickInteractions() {
+	document.body.addEventListener("click", (event) => {
 
-			
-			const screenPosition = point.position.clone()
-			screenPosition.project(camera)
-			const translateX = screenPosition.x * sizes.width * 0.5
-			const translateY = - screenPosition.y * sizes.height * 0.5
-			point.element.style.transform = `translateX(${translateX}px) translateY(${translateY}px)`
+		mouse_point.x = (event.clientX / window.innerWidth) * 2 - 1;
+		mouse_point.y = -((event.clientY / window.innerHeight) * 2 - 1);
+		click_raycaster.setFromCamera(mouse_point, camera);
+		const intersects = click_raycaster.intersectObjects(raycast_objects, true);
+		if (intersects.length && intersects[0].object.name[0] === '竖') {
+			const match_index = intersects[0].object.name.match(/\d+/);
+			const paintingIndex = parseInt(match_index[0]);
+
+			interactionUI.showBoardsBox(PAINTINGS_INFO[paintingIndex].title, PAINTINGS_INFO[paintingIndex].author, 
+				PAINTINGS_INFO[paintingIndex].describe, PAINTINGS_INFO[paintingIndex].img_src);
 		}
-		console.log('end');
-	}
+	})
 }
 
 
-const videoRaycaster = new THREE.Raycaster();
-let videoDirectionVector = new THREE.Vector3();
-function videoInteractions() {
 
-	let rayDir = new THREE.Vector3(0, 0, 0);
-	camera.getWorldDirection(rayDir);
-	rayDir.y = 0;
-	videoRaycaster.set(camera.position, rayDir.normalize());
 
-	const intersects = raycaster.intersectObject(videoPlane);
-	// console.log(intersects);
-	if (intersects.length) {
-
-	}
-}
 function animate() {
 	const deltaTime = Math.min(0.05, clock.getDelta() * 3) / STEPS_PER_FRAME;
 
@@ -670,6 +836,7 @@ function animate() {
 	}
 	orbitControls.update();
 	paintingInteractions();
+	paintingClickInteractions();
 
 	renderer.render(scene, camera);
 
