@@ -129,7 +129,7 @@ export class CharacterControls {
             this.walkDirection.applyAxisAngle(this.rotateAngle, directionOffset)
             // console.log(this.walkDirection);
 
-            const speedDelta = delta *  (this.playerOnFloor ? 15 : 9);
+            const speedDelta = delta *  (play === 'run' ? 36 : 25);
 
             this.playerVelocity.add(this.walkDirection.multiplyScalar(speedDelta));
             // run/walk velocity
@@ -166,7 +166,7 @@ export class CharacterControls {
         this.playerOnFloor = false;
         if (result) {
             this.playerOnFloor = result.normal.y > 0;
-            console.log(result.normal);
+            // console.log(result.normal);
 
             if (!this.playerOnFloor) {
                 this.playerVelocity.addScaledVector(result.normal, - result.normal.dot(this.playerVelocity));

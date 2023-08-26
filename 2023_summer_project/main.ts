@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { HalfFloatType } from "three";
 import * as dat from 'dat.gui';
 import { CharacterControls } from './characterControls_v2';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -12,13 +13,13 @@ import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHel
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader"
 import { S } from './utils';
 import { Interactions } from './interactions'
+import { loadingManager, textureLoader, sceneReady, videos, videoMaterials, aluminumMaterial, paintedConcreteMaterial, tajMahalGraniteMaterial, plywoodMaterial, concreteMaterial, glassMaterial, whiteWoolMaterial, blueGlassMaterial, dragonMaterial, whiteMarbleMaterial, stoneMarbleMaterial } from './materials'
+import { spotLightHelpers, spotLights } from './lights'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { BlendFunction, SMAAPreset, SelectiveBloomEffect, ToneMappingEffect, ColorDepthEffect, BrightnessContrastEffect, FXAAEffect, SMAAEffect, SSAOEffect, BloomEffect, EffectComposer, EffectPass, RenderPass } from "postprocessing";
+import { PAINTINGS_INFO, numOfPoints, DOCUMENTARY_INDEX, DOCUMENTARY_VIDEO_INDEX, sizes } from './Constraints';
+import { Reflector } from './Reflector'
 
-/**
- * Constraints
- */
-const numOfPoints = 23;
-const DOCUMENTARY_INDEX = 23;
-const DOCUMENTARY_VIDEO_INDEX = 0;
 
 /**
  * Scene
@@ -46,53 +47,29 @@ const camera = new THREE.PerspectiveCamera(75,
 camera.rotation.order = 'YXZ';
 camera.position.set(-2.624, 1.9, -8.46);
 
-/**
- * Loaders
- */
-
-let sceneReady = false;
-const loadingBarElement = document.getElementById('loading-bar');
-const loadingBarContainer = document.querySelector('.loading-bar-container');
-const loadingManager = new THREE.LoadingManager();
-loadingManager.onStart = (url, item, total) => {
-	console.log('Started loading file: ' + url + '.\nLoaded ' + item + ' of ' + total + ' files.');
-}
-
-loadingManager.onProgress = (url, loaded, total) => {
-	console.log('Loading file: ' + url + '.\nLoaded ' + loaded + ' of ' + total + ' files.');
-	loadingBarElement.value = (loaded / total) * 100;
-}
-
-loadingManager.onLoad = () => {
-	loadingBarContainer.classList.add("fade-out");
-	window.setTimeout(() => {
-		loadingBarContainer.style.display = 'none';
-	}, 2000);
-
-	sceneReady = true;
-};
 
 const gltfLoader = new GLTFLoader(loadingManager);
 const fbxLoader = new FBXLoader(loadingManager);
 const rgbeLoader = new RGBELoader(loadingManager);
 
-/**
- * Sizes
- */
-const sizes = {
-	width: window.innerWidth,
-	height: window.innerHeight,
-};
+const dracoLoader = new DRACOLoader(loadingManager);
+
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+dracoLoader.setDecoderConfig({ type: 'js' });
+gltfLoader.setDRACOLoader(dracoLoader);
+
 
 /**
  * Renderer
  */
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas, powerPreference: "high-performance" });
+const renderer = new THREE.WebGLRenderer({ canvas: canvas, powerPreference: "high-performance", antialias: false, stencil: false, depth: false });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+// renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.useLegacyLights = false;
 
 /**
@@ -125,11 +102,48 @@ let mouseTime = 0;
 /**
  * Panorama Environment & Background
  */
-rgbeLoader.loadAsync('/imgs/alps_field_4k.hdr').then((texture) => {
+rgbeLoader.loadAsync('/imgs/christmas_photo_studio_05_2k.hdr').then((texture) => {
 	texture.mapping = THREE.EquirectangularReflectionMapping;
 	scene.environment = texture;
+	// scene.background = texture;
+});
+
+rgbeLoader.loadAsync('/imgs/spaichingen_hill_4k.hdr').then((texture) => {
+	texture.mapping = THREE.EquirectangularReflectionMapping;
+	// scene.environment = texture;
 	scene.background = texture;
 });
+
+const mirror_1 = new Reflector(new THREE.PlaneGeometry(100, 100), {
+	textureWidth: window.innerWidth * window.devicePixelRatio,
+	textureHeight: window.innerHeight * window.devicePixelRatio,
+	color: 0xffffff,
+});
+const mirror_2 = new Reflector(new THREE.PlaneGeometry(30.1, 15.09), {
+	textureWidth: window.innerWidth * window.devicePixelRatio,
+	textureHeight: window.innerHeight * window.devicePixelRatio,
+	color: 0xffffff,
+});
+function createSpecularReflection() {
+
+	if (mirror_1.material instanceof THREE.Material) {
+		mirror_1.material.transparent = true;
+	}
+	mirror_1.rotation.x = -0.5 * Math.PI;
+	mirror_1.position.set(0, 0.06, 0);
+
+	scene.add(mirror_1);
+
+
+	if (mirror_2.material instanceof THREE.Material) {
+		mirror_2.material.transparent = true;
+	}
+	mirror_2.rotation.x = -0.5 * Math.PI;
+	mirror_2.position.set(15.05, 5.11, -9.61);
+
+	scene.add(mirror_2);
+}
+
 
 /**
  * Points for interations
@@ -151,21 +165,55 @@ for (let i = 0; i <= numOfPoints; i++) {
 /**
  * Objects for raycast
  */
-const raycast_objects: THREE.Object3D[] = [];
+let raycast_objects: THREE.Mesh[] = [];
+let raycast_objects_with_walls: THREE.Mesh[] = [];
+
+
+
+const paintingsMaterials: THREE.MeshStandardMaterial[] = [];
+for (let i = 1; i < numOfPoints; i++) {
+	const imgTexture = textureLoader.load(PAINTINGS_INFO[i].img_src);
+	const paintingMaterial = new THREE.MeshStandardMaterial({
+		map: imgTexture,
+		normalMap: new THREE.TextureLoader().load(PAINTINGS_INFO[i].normal_src),
+		side: THREE.DoubleSide,
+	});
+	paintingsMaterials.push(paintingMaterial);
+}
 
 /**
  * Model Loader
  */
+
+/**
+ * Video Plane
+ */
+let videoPlayFlag = false;
+const videoPlane = new THREE.Mesh(
+	new THREE.PlaneGeometry(16, 9),
+	videoMaterials[DOCUMENTARY_VIDEO_INDEX]
+);
+videoPlane.name = '纪录片';
+videoPlane.position.set(15, 2.545, -9.563);
+videoPlane.rotation.y = -1.57;
+videoPlane.scale.set(0.556, 0.556, 1);
+scene.add(videoPlane);
+
+let interactionUI: any;
 gltfLoader.setPath('/models/');
-gltfLoader.load('展馆v1.2-5m层高-v2.3竖画.glb', (gltf) => {
+gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
+	let ray_withwall_2f: THREE.Mesh[] = [];
+	let ray_withwall_pics: THREE.Mesh[] = [];
 	scene.add(gltf.scene);
 
 	worldOctree.fromGraphNode(gltf.scene);
+	//const collisionGroup = new THREE.Group();
 
 	gltf.scene.traverse((child) => {
 		if (child.isMesh) {
 			child.castShadow = true;
 			child.receiveShadow = true;
+
 
 			if (child.material.map) {
 				child.material.map.anisotropy = 4;
@@ -176,39 +224,86 @@ gltfLoader.load('展馆v1.2-5m层高-v2.3竖画.glb', (gltf) => {
 		if (child.name === "玻璃幕墙1" || child.name === "玻璃幕墙2" || child.name === "玻璃幕墙3" || child.name === "玻璃幕墙4" || child.name === "玻璃幕墙5"
 			|| child.name === "玻璃幕墙6" || child.name === "玻璃幕墙7" || child.name === "玻璃幕墙8" || child.name === '立方体'
 			|| child.name === "上楼墙" || child.name === "下楼墙" || child.name === "立方体.002") {
-
+			//collisionGroup.add(child);
 			child.material = glassMaterial;
 			// console.log(child);
 		}
-		else if (child.name === '2F地板') {
-			console.log(child);
-			child.material = jadeMarbleMaterial;
+		else if (child.name === '2F地板' || child.name === '地板1层') {
+			// console.log(child);
+			child.material = whiteMarbleMaterial;
+			//collisionGroup.add(child);
+		}
+		else if (child.name === '听歌识曲墙') {
+			child.material = plywoodMaterial;
+		}
+		else if (child.name === 'X墙' || child.name === '2层y墙' || child.name === '1层y墙' || child.name === '立方体.001' || child.name === '立方体.003' || child.name === '楼梯实心墙') {
+			child.material = paintedConcreteMaterial;
+		}
+		else if (child.name === '1F楼顶' || child.name === '楼顶') {
+			child.material = concreteMaterial;
 		}
 		else if (child.name === "2F墙1"
 			|| child.name === "2F墙2" || child.name === "2F墙3" || child.name === "2F墙4" || child.name === "2F墙5" || child.name === "2F墙6"
 			|| child.name === "2F墙7" || child.name === "2F墙8" || child.name === "2F墙9" || child.name === "2F墙10" || child.name === "2F墙11") {
 			child.material = stoneMarbleMaterial;
+			ray_withwall_2f.push(child);
+			//collisionGroup.add(child);
 		}
-		else if (child.name === "蜡染展台1" || child.name === "蜡染展台2" || child.name === "蜡染展台3") {
+		else if (child.name === "蜡染展台1" || child.name === "蜡染展台2" || child.name === "蜡染展台3" || child.name === '姊妹箫展台' || child.name === '听歌识曲台') {
 			child.material = blueGlassMaterial;
+			//collisionGroup.add(child);
 		}
 		else if (child.name[0] === '竖') {
-			child.material = dragonMaterial;
+			// child.material = dragonMaterial;
+			// Assuming you have a plane mesh named 'planeMesh'
+			const geometry = child.geometry;
+
+			// Assuming the plane is created using PlaneGeometry
+			// PlaneGeometry creates two triangles to represent the plane
+			// The first three vertices are one triangle's vertices
+			const vertex1 = geometry.attributes.position.array.slice(0, 3);
+			const vertex2 = geometry.attributes.position.array.slice(3, 6);
+			const vertex3 = geometry.attributes.position.array.slice(6, 9);
+
+			// Calculate the cross product of two edges of the triangle to get the normal
+			const edge1 = new THREE.Vector3().fromArray(vertex2).sub(new THREE.Vector3().fromArray(vertex1));
+			const edge2 = new THREE.Vector3().fromArray(vertex3).sub(new THREE.Vector3().fromArray(vertex1));
+			const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+
 
 			const match = child.name.match(/\d+/); // Extracts one or more digits from the name
+			console.log(`Normal Vector ${match[0]}: (${normal.x}, ${normal.y}, ${normal.z})`);
 			if (match) {
 				const pointIndex = Number(match[0]);
+
 				if (points[pointIndex]) {
 					// console.log(pointIndex);
+					child.material = paintingsMaterials[pointIndex - 1];
 					points[pointIndex].position = child.position;
+
+					// spotLights[pointIndex - 1].position.set(0, 1, 0);
+					spotLights[pointIndex - 1].target = child;
+					if (child.name[2] === '正') {
+						spotLights[pointIndex - 1].position.set(child.position.x + 1, child.position.y + 2, child.position.z);
+						// child.material.side = THREE.BackSide;
+					}
+					else if (child.name[2] === '横')
+						spotLights[pointIndex - 1].position.set(child.position.x, child.position.y + 2, child.position.z - 1);
+					else
+						spotLights[pointIndex - 1].position.set(child.position.x - 1, child.position.y + 2, child.position.z);
+					scene.add(spotLights[pointIndex - 1]);
+					// scene.add(spotLightHelpers[pointIndex - 1]);
+
+					console.log(child)
 				}
 
 				raycast_objects.push(child);
 			}
 
-			points[23].position = videoPlane.position;
-			raycast_objects.push(videoPlane);
+			// child.opacity = 0;
 		}
+
+		points[23].position = videoPlane.position;
 	});
 
 	const helper = new OctreeHelper(worldOctree);
@@ -223,8 +318,46 @@ gltfLoader.load('展馆v1.2-5m层高-v2.3竖画.glb', (gltf) => {
 
 		});
 
+	let raycast_obj_temp: THREE.Mesh[] = new Array(23);
+	raycast_objects.forEach((obj) => {
+		const match = obj.name.match(/\d+/);
+		if (match) {
+			const pointIndex = Number(match[0]);
+			raycast_obj_temp[pointIndex - 1] = obj;
+		}
+	});
+	raycast_objects = raycast_obj_temp;
+	raycast_objects.push(videoPlane);
+
+	raycast_objects.splice(22, 1);
+	ray_withwall_pics = raycast_objects;
+	raycast_objects_with_walls = ray_withwall_2f.concat(ray_withwall_pics);
+
+	// for(let i = 0; i < numOfPoints - 1; i++){
+	// 	raycast_objects[i].material.opacity = 0;
+	// 	spotLights[i].power = 0;
+	// }
+
+	console.log(raycast_objects);
+	interactionUI = new Interactions(raycast_objects, raycast_objects_with_walls, points, camera);
+	createSpecularReflection();
 	animate();
 });
+
+// Step 4: Listen for Video End Event
+videos[DOCUMENTARY_VIDEO_INDEX].video.addEventListener('ended', () => {
+	// Step 5: Update Object Opacity
+	let opacity = 1;
+	const fadeOutInterval = setInterval(() => {
+		opacity -= 0.01; // Adjust the fading rate as needed
+		videoPlane.material.opacity = opacity;
+		if (opacity <= 0) {
+			clearInterval(fadeOutInterval);
+			scene.remove(videoPlane); // Optionally remove the object from the scene
+		}
+	}, 2000); // Interval duration for fading
+});
+
 
 // console.log(points);
 
@@ -233,14 +366,18 @@ gltfLoader.load('展馆v1.2-5m层高-v2.3竖画.glb', (gltf) => {
  */
 var characterControls: CharacterControls
 let model: any;
-gltfLoader.load('Soldier.glb', function (gltf) {
+
+
+
+gltfLoader.load('Character_final.glb', function (gltf) {
 	model = gltf.scene;
+
 	model.traverse(function (object: any) {
 		if (object.isMesh) object.castShadow = true;
 
-		// console.log(object);
+	}
+	);
 
-	});
 	scene.add(model);
 	model.position.copy(playerCollider.start);
 
@@ -260,34 +397,8 @@ gltfLoader.load('Soldier.glb', function (gltf) {
 const axesHelper = new THREE.AxesHelper(100);
 scene.add(axesHelper);
 
-/**
- * Lights
- */
-const rectWidth: Number = 3.5;
-const rectHeight: Number = 0.5;
-const rectIntensity: Number = 0;
 
-const rectLights: THREE.RectAreaLight[] = [];
-const rectLightHelpers: THREE.RectAreaLightHelper[] = [];
-for (let i = 0; i < 10; i++) {
-	const rectLight = new THREE.RectAreaLight(0xffffff, rectIntensity, rectWidth, rectHeight);
-	rectLight.position.set(15.05, 7.5, -2.05);
-	rectLight.rotation.x = 0;
-	rectLight.rotation.y = 1.57;
-	rectLight.rotation.z = 0;
 
-	rectLights.push(rectLight);
-	scene.add(rectLight)
-
-	const rectLightHelper = new RectAreaLightHelper(rectLight);
-	rectLightHelpers.push(rectLightHelper);
-	scene.add(rectLightHelper);
-}
-
-rectLights[0].position.set(10.2, 7.5, -4.7);
-rectLights[0].width = 4;
-rectLights[0].rotation.x = -0.7;
-rectLights[0].intensity = 1.2;
 
 /**
  * Points of interest
@@ -296,169 +407,20 @@ const raycaster = new THREE.Raycaster()
 raycaster.far = 25;
 raycaster.near = 0.1;
 
-
-
-/**
- * Textures & Materials
- */
-
-/**
- *  Glass material
- */
-const glassMaterial = new THREE.MeshPhysicalMaterial({
-	color: 0xffffff,
-	transparent: true,
-	opacity: 0.6,
-	roughness: 0.1,
-	metalness: 0.1,
-	envMapIntensity: 0.5,
-	transmission: 1,
-	// clearcoat: 0.01,
-	// clearcoatRoughness: 0.4,
-	refractionRatio: 1.5,
-});
-
-/**
- *  Blue Glass material
- */
-const blueGlassMaterial = new THREE.MeshPhysicalMaterial({
-	color: 0x87cefa,
-	transparent: true,
-	opacity: 0.8,
-	roughness: 0,
-	metalness: 0.4,
-	envMapIntensity: 0.5,
-	transmission: 0.6,
-	clearcoat: 0.1,
-	clearcoatRoughness: 0.4,
-	refractionRatio: 1.5,
-});
-
-const textureLoader = new THREE.TextureLoader(loadingManager);
-textureLoader.setPath('/textures/');
-
-/**
- * Dragon Painting Texture
- */
-const dragonColorTexture = textureLoader.load('dragon_Model_5_u1_v1_diffuse_2.png');
-const dragonNormalTexture = textureLoader.load('dragon_Model_5_u1_v1_normal.png');
-const dragonMaterial = new THREE.MeshPhysicalMaterial({
-	map: dragonColorTexture,
-	normalMap: dragonNormalTexture,
-	side: THREE.FrontSide,
-	envMapIntensity: 0.1,
-	// roughness: 0.4,
-});
-
-/**
- * Jade Marble Texture
- */
-
-
-const jadeMarbleColorTexture = textureLoader.load('MarbleJadeBamboo001_COL_4K_METALNESS.png');
-// jadeMarbleColorTexture.repeat.set(2, 2);
-jadeMarbleColorTexture.wrapS = THREE.MirroredRepeatWrapping;
-jadeMarbleColorTexture.wrapT = THREE.RepeatWrapping;
-const jadeMarbleAlphaTexture = textureLoader.load('MarbleJadeBamboo001_MASK_4K_METALNESS.png');
-const jadeMarbleNormalTexture = textureLoader.load('MarbleJadeBamboo001_NRM_4K_METALNESS.png');
-const jadeMarbleRoughnessTexture = textureLoader.load('MarbleJadeBamboo001_ROUGHNESS_4K_METALNESS.png');
-const jadeMarbleMetalnessTexture = textureLoader.load('MarbleJadeBamboo001_METALNESS_4K_METALNESS.png');
-const jadeMarbleMaterial = new THREE.MeshPhysicalMaterial({
-	map: jadeMarbleColorTexture,
-	alphaMap: jadeMarbleAlphaTexture,
-	normalMap: jadeMarbleNormalTexture,
-	roughnessMap: jadeMarbleRoughnessTexture,
-	metalnessMap: jadeMarbleMetalnessTexture,
-	side: THREE.FrontSide
-});
-
-/**
- * 2F Stone Marble Wall Material
- */
-const stoneMarbleColorTexture = textureLoader.load("pkcnJ_4K_Albedo.jpg");
-const stoneMarbleNormalTexture = textureLoader.load("pkcnJ_4K_Normal.jpg");
-const stoneMarbleRoughnessTexture = textureLoader.load("pkcnJ_4K_Roughness.jpg");
-const stoneMarbleAOTexture = textureLoader.load("pkcnJ_4K_AO.jpg");
-const stoneMarbleDisplacementTexture = textureLoader.load("pkcnJ_4K_Displacement.jpg");
-const stoneMarbleMaterial = new THREE.MeshPhysicalMaterial({
-	map: stoneMarbleColorTexture,
-	normalMap: stoneMarbleNormalTexture,
-	roughnessMap: stoneMarbleRoughnessTexture,
-	aoMap: stoneMarbleAOTexture,
-	//displacementMap: stoneMarbleDisplacementTexture,
-
-	envMapIntensity: 0.4,
-	side: THREE.DoubleSide
-});
-
-/**
- * 1F Documentary Video Materials
- */
-const videos = [
-	{
-		video: document.createElement('video'),
-		source: '/videos/documentary_compressed.mp4',
-	}
-];
-const videoTextures = [];
-const videoMaterials = [];
-let videoPlayFlag = false;
-
-for (const video of videos) {
-	video.video.src = video.source;
-	video.video.loop = false;
-	video.video.muted = false;
-	video.video.load();
-	//video.video.autoplay = true;
-	//video.video.play();
-
-
-	videoTextures.push(new THREE.VideoTexture(video.video));
-	videoMaterials.push(new THREE.MeshBasicMaterial({ map: videoTextures[videoTextures.length - 1] }));
-}
-
-// Step 4: Listen for Video End Event
-videos[DOCUMENTARY_VIDEO_INDEX].video.addEventListener('ended', () => {
-	// Step 5: Update Object Opacity
-	let opacity = 1;
-	const fadeOutInterval = setInterval(() => {
-		opacity -= 0.01; // Adjust the fading rate as needed
-		videoPlane.material.opacity = opacity;
-		if (opacity <= 0) {
-			clearInterval(fadeOutInterval);
-			scene.remove(videoPlane); // Optionally remove the object from the scene
-		}
-	}, 100); // Interval duration for fading
-});
-
-
-
-
-
 /**
  * Dragon Painting Plane
  */
-const dragonPaintingPlane = new THREE.Mesh(
-	new THREE.PlaneGeometry(35, 9.5),
-	dragonMaterial
-);
-dragonPaintingPlane.position.set(12.8, 7, -5.65);
-dragonPaintingPlane.scale.set(0.15, 0.15, 1);
-dragonPaintingPlane.rotation.y = -0.65;
-scene.add(dragonPaintingPlane);
+// const dragonPaintingPlane = new THREE.Mesh(
+// 	new THREE.PlaneGeometry(35, 9.5),
+// 	dragonMaterial
+// );
+// dragonPaintingPlane.position.set(12.8, 7, -5.65);
+// dragonPaintingPlane.scale.set(0.15, 0.15, 1);
+// dragonPaintingPlane.rotation.y = -0.65;
+// scene.add(dragonPaintingPlane);
 
-/**
- * Video Plane
- */
 
-const videoPlane = new THREE.Mesh(
-	new THREE.PlaneGeometry(16, 9),
-	videoMaterials[0]
-);
-videoPlane.position.set(15.05, 1.49, -9.58);
-videoPlane.rotation.y = -1.57;
-videoPlane.scale.set(0.32, 0.32, 1);
-scene.add(videoPlane);
+
 
 /**
  * Physics Settings
@@ -505,39 +467,86 @@ function onWindowResize() {
  */
 const gui = new dat.GUI();
 
+let mirror_fold1 = gui.addFolder('Mirror 1');
+mirror_fold1.add(mirror_1.position, 'x').min(-100).max(100).step(0.01).name('x');
+mirror_fold1.add(mirror_1.position, 'y').min(-100).max(100).step(0.01).name('y');
+mirror_fold1.add(mirror_1.position, 'z').min(-100).max(100).step(0.01).name('z');
+mirror_fold1.add(mirror_1.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
+mirror_fold1.add(mirror_1.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
+
+let mirror_fold2 = gui.addFolder('Mirror 2');
+mirror_fold2.add(mirror_2.position, 'x').min(-100).max(100).step(0.01).name('x');
+mirror_fold2.add(mirror_2.position, 'y').min(-100).max(100).step(0.01).name('y');
+mirror_fold2.add(mirror_2.position, 'z').min(-100).max(100).step(0.01).name('z');
+mirror_fold2.add(mirror_2.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
+mirror_fold2.add(mirror_2.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
+
 let index = 1;
-for (const rectLight of rectLights) {
-	let rectLightFolder = gui.addFolder('RectLight ' + index++);
-	rectLightFolder.add(rectLight.position, 'x').min(-100).max(100).step(0.01).name('x');
-	rectLightFolder.add(rectLight.position, 'y').min(-100).max(100).step(0.01).name('y');
-	rectLightFolder.add(rectLight.position, 'z').min(-20).max(20).step(0.01).name('z');
-	rectLightFolder.add(rectLight, 'height').min(0).max(20).step(0.01).name('height');
-	rectLightFolder.add(rectLight, 'width').min(0).max(20).step(0.01).name('width');
-	rectLightFolder.add(rectLight, 'intensity').min(0).max(200).step(0.01).name('intensity');
-	rectLightFolder.add(rectLight.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.01).name('rotateX');
-	rectLightFolder.add(rectLight.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.01).name('rotateY');
-	rectLightFolder.add(rectLight.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.01).name('rotateZ');
+for (const spotLight of spotLights) {
+	let spotLightFolder = gui.addFolder('SpotLight ' + index++);
+	spotLightFolder.add(spotLight.position, 'x').min(-100).max(100).step(0.01).name('x');
+	spotLightFolder.add(spotLight.position, 'y').min(-100).max(100).step(0.01).name('y');
+	spotLightFolder.add(spotLight.position, 'z').min(-20).max(20).step(0.01).name('z');
+	spotLightFolder.add(spotLight, 'angle').min(0).max(Math.PI / 2).step(0.01).name('angle');
+	spotLightFolder.add(spotLight, 'penumbra').min(0).max(1).step(0.01).name('penumbra');
+	spotLightFolder.add(spotLight, 'power').min(30).max(300).step(0.01).name('power');
+	spotLightFolder.add(spotLight, 'decay').min(0).max(2).step(0.01).name('decay');
+	spotLightFolder.add(spotLight.shadow, 'focus').min(0).max(1).step(0.01).name('focus');
+	spotLightFolder.add(spotLight.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.01).name('rotateX');
+	spotLightFolder.add(spotLight.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.01).name('rotateY');
+	spotLightFolder.add(spotLight.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.01).name('rotateZ');
 }
 
-let dragonFolder = gui.addFolder('Dragon Painting Plane');
-dragonFolder.add(dragonPaintingPlane.position, 'x').min(-100).max(100).step(0.01).name('x');
-dragonFolder.add(dragonPaintingPlane.position, 'y').min(-100).max(100).step(0.01).name('y');
-dragonFolder.add(dragonPaintingPlane.position, 'z').min(-100).max(100).step(0.01).name('z');
-dragonFolder.add(dragonPaintingPlane.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.01).name('rotateX');
-dragonFolder.add(dragonPaintingPlane.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.01).name('rotateY');
-dragonFolder.add(dragonPaintingPlane.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.01).name('rotateZ');
-dragonFolder.add(dragonPaintingPlane.scale, 'x').min(-20).max(10).step(0.01).name('scaleX');
-dragonFolder.add(dragonPaintingPlane.scale, 'y').min(-20).max(10).step(0.01).name('scaleY');
-
 let documentaryFolder = gui.addFolder('Documentary Video Plane');
-documentaryFolder.add(videoPlane.position, 'x').min(0).max(30).step(0.002).name('x');
-documentaryFolder.add(videoPlane.position, 'y').min(0).max(30).step(0.002).name('y');
-documentaryFolder.add(videoPlane.position, 'z').min(-20).max(0).step(0.002).name('z');
+documentaryFolder.add(videoPlane.position, 'x').min(0).max(30).step(0.001).name('x');
+documentaryFolder.add(videoPlane.position, 'y').min(0).max(30).step(0.001).name('y');
+documentaryFolder.add(videoPlane.position, 'z').min(-20).max(0).step(0.001).name('z');
 documentaryFolder.add(videoPlane.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.01).name('rotateX');
 documentaryFolder.add(videoPlane.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.01).name('rotateY');
 documentaryFolder.add(videoPlane.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.01).name('rotateZ');
-documentaryFolder.add(videoPlane.scale, 'x').min(0).max(1).step(0.01).name('scaleX');
-documentaryFolder.add(videoPlane.scale, 'y').min(0).max(1).step(0.01).name('scaleY');
+documentaryFolder.add(videoPlane.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
+documentaryFolder.add(videoPlane.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
+
+/**
+ * Post Processing
+ */
+const composer = new EffectComposer(renderer, {
+	frameBufferType: HalfFloatType
+});
+composer.addPass(new RenderPass(scene, camera));
+
+const bloomEffect = new SelectiveBloomEffect(scene, camera, {
+	blendFunction: BlendFunction.ADD,
+	mipmapBlur: true,
+	luminanceThreshold: 0.4,
+	luminanceSmoothing: 0.2,
+	intensity: 3.0,
+});
+
+let postProcess = gui.addFolder('Post Process');
+let bloomFolder = postProcess.addFolder('Bloom Effect');
+bloomFolder.add(bloomEffect, 'intensity').min(0).max(100).step(0.01).name('intensity');
+bloomFolder.add(bloomEffect, 'width').min(0).max(1).step(0.01).name('width');
+// bloomFolder.add(bloomEffect, 'resolutionScale').min(0).max(1).step(0.01).name('resolutionScale');
+
+bloomFolder.add(bloomEffect.mipmapBlurPass, 'radius').min(0.0).max(100.0).step(0.001).name('radius');
+bloomFolder.add(bloomEffect.luminanceMaterial, 'smoothing').min(0).max(1).step(0.01).name('smoothing');
+bloomFolder.add(bloomEffect.luminanceMaterial, 'threshold').min(0).max(1).step(0.01).name('threshold');
+
+//const colorDepthEffectEffect = new ColorDepthEffect();
+//let colordep = postProcess.addFolder('Color Depth Effect');
+//colordep.add(colorDepthEffectEffect, 'bitDepth').min(8).max(64).step(1).name('bitDepth');
+
+const brightnessContrastEffect = new BrightnessContrastEffect();
+let brightContrast = postProcess.addFolder('Brightness Contrast Effect');
+brightContrast.add(brightnessContrastEffect, 'brightness').min(0).max(10).step(0.01).name('brightness');
+brightContrast.add(brightnessContrastEffect, 'contrast').min(0).max(100).step(0.1).name('contrast');
+
+const toneMappingEffect = new ToneMappingEffect();
+const smaaEffect = new SMAAEffect();
+smaaEffect.applyPreset(SMAAPreset.ULTRA);
+
+composer.addPass(new EffectPass(camera, bloomEffect, smaaEffect, toneMappingEffect, brightnessContrastEffect));
 
 
 /**
@@ -549,277 +558,27 @@ documentaryFolder.add(videoPlane.scale, 'y').min(0).max(1).step(0.01).name('scal
  */
 const timeStep = 1 / 60;
 const hover_point = new THREE.Vector2(0, 0);
-let match_index: any;
-let pointIndex: any = 0;
 
-function paintingInteractions() {
-	// Update points only when the scene is ready
-	if (sceneReady) {
+// let pointIndex: any = 0;
 
-		// raycaster.setFromCamera(hover_point, camera);
-		let rayDir = new THREE.Vector3(0, 0, 0);
-		camera.getWorldDirection(rayDir);
-		rayDir.y = 0;
-		raycaster.set(camera.position, rayDir.normalize());
 
-		const intersects = raycaster.intersectObjects(raycast_objects);
-		// console.log(intersects);
-		if (intersects.length) {
-			if (intersects[0].object.name[0] === '竖') {
-				match_index = intersects[0].object.name.match(/\d+/);
 
-				pointIndex = Number(match_index[0]);
-				points[pointIndex].element.classList.add('visible')
-				videoPlayFlag = false;
-			}
-			else {
-				pointIndex = DOCUMENTARY_INDEX;
-				points[DOCUMENTARY_INDEX].element.classList.add('visible')
-				videoPlayFlag = true;
-			}
-			for (let i = 0; i <= numOfPoints; i++) {
-				if (i == pointIndex)
-					continue;
-				points[i].element.classList.remove('visible');
-			}
-		}
 
-		// Intersect found
-		else {
-			points[pointIndex].element.classList.remove('visible')
-		}
 
-		// Get 2D screen position
-		for (const point of points) {
-			const screenPosition = point.position.clone()
-			screenPosition.project(camera)
-			const translateX = screenPosition.x * sizes.width * 0.5
-			const translateY = - screenPosition.y * sizes.height * 0.5
-			point.element.style.transform = `translateX(${translateX}px) translateY(${translateY}px)`
-		}
-	}
-}
-
-const interactionUI = new Interactions();
-const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: string, img_src: string }> = {
-	1: {
-		title: "《中華-1》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-1介绍<br>
-		中華-1介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	2: {
-		title: "《中華-2》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-2介绍<br>
-		中華-2介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	3: {
-		title: "《中華-3》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-3介绍<br>
-		中華-3介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	4: {
-		title: "《中華-4》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-4介绍<br>
-		中華-4介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	5: {
-		title: "《中華-5》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-5介绍<br>
-		中華-5介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	6: {
-		title: "《中華-6》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-6介绍<br>
-		中華-6介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	7: {
-		title: "《中華-7》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-7介绍<br>
-		中華-7介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	8: {
-		title: "《中華-8》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-8介绍<br>
-		中華-8介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	9: {
-		title: "《中華-9》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-9介绍<br>
-		中華-9介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	10: {
-		title: "《中華-10》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-10介绍<br>
-		中華-10介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	11: {
-		title: "《中華-11》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	12: {
-		title: "《中華-12》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-12介绍<br>
-		中華-12绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	13: {
-		title: "《中華-13》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	14: {
-		title: "《中華-14》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	15: {
-		title: "《中華-15》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	16: {
-		title: "《中華-16》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	17: {
-		title: "《中華-17》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	18: {
-		title: "《中華-18》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	19: {
-		title: "《中華-19》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	20: {
-		title: "《中華-20》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	21: {
-		title: "《中華-21》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-	22: {
-		title: "《中華-22》",
-		author: "安顺蜡染博物馆",
-		describe: `
-		中華-11介绍<br>
-		中華-11介绍<br>
-		`,
-		img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2.png"
-	},
-
-};
 const click_raycaster: THREE.Raycaster = new THREE.Raycaster();
+
+click_raycaster.far = 3;
 let mouse_point: THREE.Vector2 = new THREE.Vector2(0, 0);
-function paintingClickInteractions() {
-	document.body.addEventListener("click", (event) => {
 
-		mouse_point.x = (event.clientX / window.innerWidth) * 2 - 1;
-		mouse_point.y = -((event.clientY / window.innerHeight) * 2 - 1);
-		click_raycaster.setFromCamera(mouse_point, camera);
-		const intersects = click_raycaster.intersectObjects(raycast_objects, true);
-		if (intersects.length && intersects[0].object.name[0] === '竖') {
-			const match_index = intersects[0].object.name.match(/\d+/);
-			const paintingIndex = parseInt(match_index[0]);
+document.body.addEventListener("mouseup", (event) => {
+	mouse_point.x = (event.clientX / window.innerWidth) * 2 - 1;
+	mouse_point.y = -((event.clientY / window.innerHeight) * 2 - 1);
 
-			interactionUI.showBoardsBox(PAINTINGS_INFO[paintingIndex].title, PAINTINGS_INFO[paintingIndex].author, 
-				PAINTINGS_INFO[paintingIndex].describe, PAINTINGS_INFO[paintingIndex].img_src);
-		}
-	})
-}
+	interactionUI.paintingClickInteractions(mouse_point, camera);
+	// event.stopPropagation();
+});
+
+
 
 
 
@@ -835,10 +594,10 @@ function animate() {
 		// characterControls.updateCamera();
 	}
 	orbitControls.update();
-	paintingInteractions();
-	paintingClickInteractions();
+	videoPlayFlag = interactionUI.paintingInteractions(sceneReady, camera);
 
-	renderer.render(scene, camera);
+
+	composer.render();
 
 	// console.log(camera.position)
 	requestAnimationFrame(animate);

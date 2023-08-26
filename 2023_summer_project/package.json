@@ -14,8 +14,10 @@
     "vite": "^4.4.5"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.10.0",
     "dat.gui": "^0.7.9",
     "gsap": "^3.12.2",
+    "postprocessing": "^6.33.0",
     "three": "^0.155.0"
   }
 }

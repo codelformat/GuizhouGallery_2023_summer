@@ -127,6 +127,44 @@ label{
     transform: scale(1, 1);
 }
 
+/* 预览div */
+#preview-tooltip {
+	user-select: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+	-moz-user-select: none;
+	position: fixed;
+	left: 50%;
+	bottom: 10%;
+	transform: translateX(-50%);
+	z-index: 9999;
+	max-width: 260px;
+	border-radius: 10px;
+	padding: 10px 20px;
+	background: rgba(0, 0, 0, 0.5);
+	color: #fff;
+	opacity: 0;
+	transition: opacity .5s;
+}
+#preview-tips {
+	user-select: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+	-moz-user-select: none;
+	position: fixed;
+	width: 65%;
+	text-align: center;
+	left: 50%;
+	bottom: 1%;
+	transform: translateX(-50%);
+	z-index: 9999;
+	border-radius: 4px;
+	padding: 5px 20px;
+	background: rgba(0, 0, 0, 0.5);
+	color: #fff;
+	opacity: 0;
+	transition: opacity .5s;
+}
 
 #boards-info {
 	user-select: none;
