@@ -97,13 +97,13 @@ export class Interactions {
 
 	fadeInObject(object3D: THREE.Object3D, spotlight:THREE.SpotLight, duration = 1) {
 		// Set initial opacity to 0 to prepare for fade-in
-		object3D.material.opacity = 0;
-		object3D.visible = true; // Make sure the object is visible
+		// object3D.material.opacity = 0;
+		// object3D.visible = true; // Make sure the object is visible
 	  
 		// Start fading in the object using GSAP's TweenMax
 		gsap.to([object3D.material, spotlight], {
 		  opacity: 1, // Fade in to fully opaque
-		  power: 30,
+		  power: 20,
 		  duration: duration, // How long should the fade-in take?
 		  onComplete: () => {
 			// Optionally, you can set the opacity back to 1 if you plan to reuse the object
@@ -139,16 +139,17 @@ export class Interactions {
 			this.raycaster.set(camera.position, rayDir.normalize());
 	
 			const intersects = this.raycaster.intersectObjects(this.raycast_objects_with_walls, true);
-			console.log(intersects);
+			//console.log(intersects);
 			// console.log(intersects);
 			if (intersects.length) {
-				console.log('AAA')
+				//console.log('AAA')
 				if (intersects[0].object.name[0] === '竖') {
 					match_index = intersects[0].object.name.match(/\d+/);
 	
 					this.pointIndex = Number(match_index[0]);
-					// this.fadeInObject(this.raycast_objects[this.pointIndex - 1], spotLights[this.pointIndex - 1]);
+					this.fadeInObject(this.raycast_objects[this.pointIndex - 1], spotLights[this.pointIndex - 1]);
 					this.showPreviewTooltip(PAINTINGS_INFO[this.pointIndex].title);
+					this.preview_tips.innerHTML = "提示：点击此画可查看详情"
 					//intersects[0].object.opacity = 1;
 					// console.log(intersects[0].object);
 					videoPlayFlag = false;
@@ -156,6 +157,7 @@ export class Interactions {
 				else if(intersects[0].object.name[0] != '2'){
 					this.pointIndex = DOCUMENTARY_INDEX;
 					this.showPreviewTooltip("《姊妹箫纪录片》");
+					this.preview_tips.innerHTML = "提示：按F播放视频"
 					//intersects[0].object.opacity = 1;
 					videoPlayFlag = true;
 				}

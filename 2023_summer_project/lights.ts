@@ -7,7 +7,7 @@ const spotAngle: number = Math.PI / 6;
 const spotDecay: Number = 2;
 // const spotIntensity: Number = 2;
 const spotPenumbra: Number = 0.5;
-const spotPower: Number = 30;
+const spotPower: Number = 20;
 const spotShadowFocus: Number = 1;
 
 const spotLights: THREE.SpotLight[] = [];
@@ -42,6 +42,12 @@ for (let i = 1; i < 23; i++) {
 	spotLightHelpers.push(spotLightHelper);
 	//scene.add(spotLightHelper);
 }
+
+const spotLightGroup = new THREE.Group();
+for(let i = 0; i < spotLights.length; i++) {
+	spotLightGroup.add(spotLights[i]);
+}
+
 console.log('lights loaded');
 
-export { spotLights, spotLightHelpers };
+export { spotLights, spotLightHelpers, spotLightGroup };

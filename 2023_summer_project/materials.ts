@@ -44,6 +44,7 @@ export const glassMaterial = new THREE.MeshPhysicalMaterial({
 	metalness: 0.1,
 	envMapIntensity: 0.5,
 	transmission: 1,
+	thickness: 0.1,
 	// clearcoat: 0.01,
 	// clearcoatRoughness: 0.4,
 	refractionRatio: 1.5,
@@ -79,7 +80,7 @@ export const dragonMaterial = new THREE.MeshPhysicalMaterial({
 });
 
 /**
- * Jade Marble Texture
+ * White Marble Texture
  */
 
 
@@ -200,7 +201,13 @@ export const plywoodMaterial = new THREE.MeshPhysicalMaterial({
  * Taj Mahal Granite material
  */
 const tajMahalGraniteColorTexture = textureLoader.load('/textures/Taj Mahal Granite_wjmkahbl/Albedo_4K__wjmkahbl.jpg');
+tajMahalGraniteColorTexture.wrapS = THREE.RepeatWrapping;
+tajMahalGraniteColorTexture.wrapT = THREE.RepeatWrapping;
+tajMahalGraniteColorTexture.repeat.set(4, 24);
 const tajMahalGraniteRoughnessTexture = textureLoader.load('/textures/Taj Mahal Granite_wjmkahbl/Roughness_4K__wjmkahbl.jpg');
+tajMahalGraniteRoughnessTexture.wrapS = THREE.RepeatWrapping;
+tajMahalGraniteRoughnessTexture.wrapT = THREE.RepeatWrapping;
+tajMahalGraniteRoughnessTexture.repeat.set(4, 24);
 export const tajMahalGraniteMaterial = new THREE.MeshPhysicalMaterial({
 	map: tajMahalGraniteColorTexture,
 	roughnessMap: tajMahalGraniteRoughnessTexture,
@@ -214,19 +221,19 @@ export const tajMahalGraniteMaterial = new THREE.MeshPhysicalMaterial({
 const paintedConcreteColorTexture = textureLoader.load('/textures/Painted Concrete Wall_ulxedaag/Albedo_4K__ulxedaag.jpg');
 paintedConcreteColorTexture.wrapS = THREE.RepeatWrapping;
 paintedConcreteColorTexture.wrapT = THREE.RepeatWrapping;
-paintedConcreteColorTexture.repeat.set(4, 16);
+paintedConcreteColorTexture.repeat.set(12, 24);
 const paintedConcreteNormalTexture = textureLoader.load('/textures/Painted Concrete Wall_ulxedaag/Normal_4K__ulxedaag.jpg');
 paintedConcreteNormalTexture.wrapS = THREE.RepeatWrapping;
 paintedConcreteNormalTexture.wrapT = THREE.RepeatWrapping;
-paintedConcreteNormalTexture.repeat.set(4, 16);
+paintedConcreteNormalTexture.repeat.set(12, 24);
 const paintedConcreteRoughnessTexture = textureLoader.load('/textures/Painted Concrete Wall_ulxedaag/Roughness_4K__ulxedaag.jpg');
 paintedConcreteRoughnessTexture.wrapS = THREE.RepeatWrapping;
 paintedConcreteRoughnessTexture.wrapT = THREE.RepeatWrapping;
-paintedConcreteRoughnessTexture.repeat.set(4, 16);
+paintedConcreteRoughnessTexture.repeat.set(12, 24);
 const paintedConcreteAOTexture = textureLoader.load('/textures/Painted Concrete Wall_ulxedaag/AO_4K__ulxedaag.jpg');
 paintedConcreteAOTexture.wrapS = THREE.RepeatWrapping;
 paintedConcreteAOTexture.wrapT = THREE.RepeatWrapping;
-paintedConcreteAOTexture.repeat.set(4, 16);
+paintedConcreteAOTexture.repeat.set(12, 24);
 export const paintedConcreteMaterial = new THREE.MeshPhysicalMaterial({
 	map: paintedConcreteColorTexture,
 	normalMap: paintedConcreteNormalTexture,
@@ -241,9 +248,21 @@ export const paintedConcreteMaterial = new THREE.MeshPhysicalMaterial({
  * Aluminum material
  */
 const aluminumColorTexture = textureLoader.load('/textures/Brushed Aluminum_shkaaafc/Albedo_4K__shkaaafc.jpg');
+aluminumColorTexture.wrapS = THREE.RepeatWrapping;
+aluminumColorTexture.wrapT = THREE.RepeatWrapping;
+aluminumColorTexture.repeat.set(1, 4);
 const aluminumNormalTexture = textureLoader.load('/textures/Brushed Aluminum_shkaaafc/Normal_4K__shkaaafc.jpg');
+aluminumNormalTexture.wrapS = THREE.RepeatWrapping;
+aluminumNormalTexture.wrapT = THREE.RepeatWrapping;
+aluminumNormalTexture.repeat.set(1, 4);
 const aluminumRoughnessTexture = textureLoader.load('/textures/Brushed Aluminum_shkaaafc/Roughness_4K__shkaaafc.jpg');
+aluminumRoughnessTexture.wrapS = THREE.RepeatWrapping;
+aluminumRoughnessTexture.wrapT = THREE.RepeatWrapping;
+aluminumRoughnessTexture.repeat.set(1, 4);
 const aluminumMetalnessTexture = textureLoader.load('/textures/Brushed Aluminum_shkaaafc/Metalness_4K__shkaaafc.jpg');
+aluminumMetalnessTexture.wrapS = THREE.RepeatWrapping;
+aluminumMetalnessTexture.wrapT = THREE.RepeatWrapping;
+aluminumMetalnessTexture.repeat.set(1, 4);
 export const aluminumMaterial = new THREE.MeshPhysicalMaterial({
 	map: aluminumColorTexture,
 	normalMap: aluminumNormalTexture,

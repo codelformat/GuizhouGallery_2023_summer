@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { HalfFloatType } from "three";
-import * as dat from 'dat.gui';
-import { CharacterControls } from './characterControls_v2';
+
+import {gui} from './guiPanel';
+import { CharacterControls } from './characterControls_v2.1';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { Octree } from 'three/examples/jsm/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
@@ -11,41 +11,25 @@ import { Capsule } from 'three/examples/jsm/math/Capsule.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js';
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader"
+// import WebGPU from 'three/addons/capabilities/WebGPU.js';
+// import WebGPURenderer from 'three/addons/renderers/webgpu/WebGPURenderer.js';
+import {scene, camera, renderer, composer, depthOfFieldEffect, mainLight} from './postprocess';
 import { S } from './utils';
 import { Interactions } from './interactions'
 import { loadingManager, textureLoader, sceneReady, videos, videoMaterials, aluminumMaterial, paintedConcreteMaterial, tajMahalGraniteMaterial, plywoodMaterial, concreteMaterial, glassMaterial, whiteWoolMaterial, blueGlassMaterial, dragonMaterial, whiteMarbleMaterial, stoneMarbleMaterial } from './materials'
 import { spotLightHelpers, spotLights } from './lights'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { BlendFunction, SMAAPreset, SelectiveBloomEffect, ToneMappingEffect, ColorDepthEffect, BrightnessContrastEffect, FXAAEffect, SMAAEffect, SSAOEffect, BloomEffect, EffectComposer, EffectPass, RenderPass } from "postprocessing";
 import { PAINTINGS_INFO, numOfPoints, DOCUMENTARY_INDEX, DOCUMENTARY_VIDEO_INDEX, sizes } from './Constraints';
 import { Reflector } from './Reflector'
 
 
-/**
- * Scene
- */
-const scene = new THREE.Scene();
-
-/**
- * Canvas
- */
-const canvas = document.querySelector('canvas.webgl');
 
 /**
  * Base Settings
  */
 const clock = new THREE.Clock();
+let isFirstPersonView:boolean = false;
 
-/**
- * Camera
- */
-const camera = new THREE.PerspectiveCamera(75,
-	window.innerWidth / window.innerHeight,
-	0.01,
-	100
-);
-camera.rotation.order = 'YXZ';
-camera.position.set(-2.624, 1.9, -8.46);
 
 
 const gltfLoader = new GLTFLoader(loadingManager);
@@ -59,18 +43,7 @@ dracoLoader.setDecoderConfig({ type: 'js' });
 gltfLoader.setDRACOLoader(dracoLoader);
 
 
-/**
- * Renderer
- */
-const renderer = new THREE.WebGLRenderer({ canvas: canvas, powerPreference: "high-performance", antialias: false, stencil: false, depth: false });
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.VSMShadowMap;
-renderer.toneMapping = THREE.NoToneMapping;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-// renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.useLegacyLights = false;
+
 
 /**
  * Controls
@@ -170,12 +143,15 @@ let raycast_objects_with_walls: THREE.Mesh[] = [];
 
 
 
-const paintingsMaterials: THREE.MeshStandardMaterial[] = [];
+const paintingsMaterials: THREE.MeshPhysicalMaterial[] = [];
 for (let i = 1; i < numOfPoints; i++) {
 	const imgTexture = textureLoader.load(PAINTINGS_INFO[i].img_src);
 	const paintingMaterial = new THREE.MeshStandardMaterial({
 		map: imgTexture,
 		normalMap: new THREE.TextureLoader().load(PAINTINGS_INFO[i].normal_src),
+		transparent: true,
+		opacity: 1,
+		envmapIntensity: 0,
 		side: THREE.DoubleSide,
 	});
 	paintingsMaterials.push(paintingMaterial);
@@ -201,6 +177,82 @@ scene.add(videoPlane);
 
 let interactionUI: any;
 gltfLoader.setPath('/models/');
+gltfLoader.load('校徽logoV0.1.glb', (gltf) => {
+	scene.add(gltf.scene);
+
+	worldOctree.fromGraphNode(gltf.scene);
+
+
+	gltf.scene.traverse((child) => {
+		if (child.name === 'path0') {
+			var logo = gui.addFolder('校徽');
+			child.position.x = 7.55;
+			child.position.y = 2;
+			child.position.z = -13.55;
+			child.rotation.z = Math.PI / 4;
+			mainLight.target = child;
+			scene.add(child);
+
+			logo.add(child.position, 'x').min(5).max(10).step(0.001).name('x');
+			logo.add(child.position, 'y').min(2).max(4).step(0.001).name('y');
+			logo.add(child.position, 'z').min(-14).max(-12).step(0.001).name('z');
+			logo.add(child.scale, 'x').min(0).max(100).step(0.001).name('scaleX');
+			logo.add(child.scale, 'y').min(0).max(100).step(0.001).name('scaleY');
+			logo.add(child.scale, 'z').min(0).max(100).step(0.001).name('scaleZ');
+			logo.add(child.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.001).name('rotationX');
+			logo.add(child.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.001).name('rotationY');
+			logo.add(child.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.001).name('rotationZ');
+		}
+
+		if (child.isMesh) {
+			child.castShadow = true;
+			child.receiveShadow = true;
+
+
+			if (child.material.map) {
+				child.material.map.anisotropy = 4;
+			}
+		}
+	});
+});
+
+// gltfLoader.load('zong.glb', (gltf) => {
+// 	scene.add(gltf.scene);
+
+// 	worldOctree.fromGraphNode(gltf.scene);
+// 	gltf.scene.traverse((child) => {
+// 		console.log(child);
+// 		if (child.name === 'path3') {
+// 			var zong = gui.addFolder('综影')
+// 			child.position.x = 7.55;
+// 			child.position.y = 2;
+// 			child.position.z = -5.55;
+// 			child.rotation.z = -Math.PI / 4;
+
+// 			zong.add(child.position, 'x').min(5).max(10).step(0.001).name('x');
+// 			zong.add(child.position, 'y').min(1).max(6).step(0.01).name('y');
+// 			zong.add(child.position, 'z').min(-8).max(-5).step(0.01).name('z');
+// 			zong.add(child.scale, 'x').min(0).max(100).step(0.001).name('scaleX');
+// 			zong.add(child.scale, 'y').min(0).max(100).step(0.001).name('scaleY');
+// 			zong.add(child.scale, 'z').min(0).max(100).step(0.001).name('scaleZ');
+			
+// 			zong.add(child.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.001).name('rotationX');
+// 			zong.add(child.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.001).name('rotationY');
+// 			zong.add(child.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.001).name('rotationZ');
+// 		}
+// 		if (child.isMesh) {
+// 			child.castShadow = true;
+// 			child.receiveShadow = true;
+
+
+// 			if (child.material.map) {
+// 				child.material.map.anisotropy = 4;
+// 			}
+// 		}
+// 	});
+// });
+
+let collision_objects: THREE.Mesh[] = [];
 gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 	let ray_withwall_2f: THREE.Mesh[] = [];
 	let ray_withwall_pics: THREE.Mesh[] = [];
@@ -213,7 +265,7 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 		if (child.isMesh) {
 			child.castShadow = true;
 			child.receiveShadow = true;
-
+			collision_objects.push(child);
 
 			if (child.material.map) {
 				child.material.map.anisotropy = 4;
@@ -238,6 +290,13 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 		}
 		else if (child.name === 'X墙' || child.name === '2层y墙' || child.name === '1层y墙' || child.name === '立方体.001' || child.name === '立方体.003' || child.name === '楼梯实心墙') {
 			child.material = paintedConcreteMaterial;
+		}
+		else if (child.name === '幕墙装饰'){
+			child.material = aluminumMaterial;
+		}
+		else if(child.name === 'logo台1' || child.name === 'logo台2'){
+			console.log('logo position');
+			console.log(child.position);
 		}
 		else if (child.name === '1F楼顶' || child.name === '楼顶') {
 			child.material = concreteMaterial;
@@ -333,11 +392,12 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 	ray_withwall_pics = raycast_objects;
 	raycast_objects_with_walls = ray_withwall_2f.concat(ray_withwall_pics);
 
-	// for(let i = 0; i < numOfPoints - 1; i++){
-	// 	raycast_objects[i].material.opacity = 0;
-	// 	spotLights[i].power = 0;
-	// }
+	for (let i = 0; i < numOfPoints - 1; i++) {
+		raycast_objects[i].material.opacity = 0;
+		spotLights[i].power = 0;
+	}
 
+	mirror_fold2.add(raycast_objects[11].material, 'opacity').min(0).max(1).step(0.01).name('opacity');
 	console.log(raycast_objects);
 	interactionUI = new Interactions(raycast_objects, raycast_objects_with_walls, points, camera);
 	createSpecularReflection();
@@ -371,9 +431,15 @@ let model: any;
 
 gltfLoader.load('Character_final.glb', function (gltf) {
 	model = gltf.scene;
+	
 
 	model.traverse(function (object: any) {
-		if (object.isMesh) object.castShadow = true;
+		if (object.isMesh) {
+			object.castShadow = true;
+			object.receiveShadow = true;
+			object.material.transparent = true;
+			object.material.opacity = 1;
+		}
 
 	}
 	);
@@ -388,7 +454,7 @@ gltfLoader.load('Character_final.glb', function (gltf) {
 		animationsMap.set(a.name, mixer.clipAction(a))
 	})
 
-	characterControls = new CharacterControls(scene, model, mixer, animationsMap, orbitControls, camera, worldOctree, playerCollider, 'Idle')
+	characterControls = new CharacterControls(scene, model, mixer, animationsMap, orbitControls, camera, worldOctree, playerCollider, collision_objects, 'Idle')
 });
 
 /**
@@ -443,6 +509,8 @@ document.addEventListener('keydown', (event) => {
 		characterControls.switchRunToggle()
 	} else if (event.key.toLowerCase() == 'f' && videoPlayFlag) {
 		videos[DOCUMENTARY_VIDEO_INDEX].video.play();
+	} else if (event.key.toLowerCase() == 'v') {
+		isFirstPersonView = !isFirstPersonView;
 	}
 	else {
 		(keysPressed as any)[event.key.toLowerCase()] = true
@@ -453,6 +521,16 @@ document.addEventListener('keyup', (event) => {
 	(keysPressed as any)[event.key.toLowerCase()] = false
 }, false);
 
+document.body.addEventListener('mousemove', handleMouseMove);
+function handleMouseMove(event: MouseEvent) {
+	if (isFirstPersonView) {
+
+		camera.rotation.y -= event.movementX / 500;
+		camera.rotation.x -= event.movementY / 500;
+	}
+}
+
+
 // Resize Window
 window.addEventListener('resize', onWindowResize);
 function onWindowResize() {
@@ -462,11 +540,9 @@ function onWindowResize() {
 	renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-/**
- * dat.GUI Panel Controller
- */
-const gui = new dat.GUI();
 
+
+// gui.add(raycast_objects[1].material, 'opacity').min(0).max(1).step(0.01).name('opacity');
 let mirror_fold1 = gui.addFolder('Mirror 1');
 mirror_fold1.add(mirror_1.position, 'x').min(-100).max(100).step(0.01).name('x');
 mirror_fold1.add(mirror_1.position, 'y').min(-100).max(100).step(0.01).name('y');
@@ -480,73 +556,6 @@ mirror_fold2.add(mirror_2.position, 'y').min(-100).max(100).step(0.01).name('y')
 mirror_fold2.add(mirror_2.position, 'z').min(-100).max(100).step(0.01).name('z');
 mirror_fold2.add(mirror_2.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
 mirror_fold2.add(mirror_2.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
-
-let index = 1;
-for (const spotLight of spotLights) {
-	let spotLightFolder = gui.addFolder('SpotLight ' + index++);
-	spotLightFolder.add(spotLight.position, 'x').min(-100).max(100).step(0.01).name('x');
-	spotLightFolder.add(spotLight.position, 'y').min(-100).max(100).step(0.01).name('y');
-	spotLightFolder.add(spotLight.position, 'z').min(-20).max(20).step(0.01).name('z');
-	spotLightFolder.add(spotLight, 'angle').min(0).max(Math.PI / 2).step(0.01).name('angle');
-	spotLightFolder.add(spotLight, 'penumbra').min(0).max(1).step(0.01).name('penumbra');
-	spotLightFolder.add(spotLight, 'power').min(30).max(300).step(0.01).name('power');
-	spotLightFolder.add(spotLight, 'decay').min(0).max(2).step(0.01).name('decay');
-	spotLightFolder.add(spotLight.shadow, 'focus').min(0).max(1).step(0.01).name('focus');
-	spotLightFolder.add(spotLight.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.01).name('rotateX');
-	spotLightFolder.add(spotLight.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.01).name('rotateY');
-	spotLightFolder.add(spotLight.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.01).name('rotateZ');
-}
-
-let documentaryFolder = gui.addFolder('Documentary Video Plane');
-documentaryFolder.add(videoPlane.position, 'x').min(0).max(30).step(0.001).name('x');
-documentaryFolder.add(videoPlane.position, 'y').min(0).max(30).step(0.001).name('y');
-documentaryFolder.add(videoPlane.position, 'z').min(-20).max(0).step(0.001).name('z');
-documentaryFolder.add(videoPlane.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.01).name('rotateX');
-documentaryFolder.add(videoPlane.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.01).name('rotateY');
-documentaryFolder.add(videoPlane.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.01).name('rotateZ');
-documentaryFolder.add(videoPlane.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
-documentaryFolder.add(videoPlane.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
-
-/**
- * Post Processing
- */
-const composer = new EffectComposer(renderer, {
-	frameBufferType: HalfFloatType
-});
-composer.addPass(new RenderPass(scene, camera));
-
-const bloomEffect = new SelectiveBloomEffect(scene, camera, {
-	blendFunction: BlendFunction.ADD,
-	mipmapBlur: true,
-	luminanceThreshold: 0.4,
-	luminanceSmoothing: 0.2,
-	intensity: 3.0,
-});
-
-let postProcess = gui.addFolder('Post Process');
-let bloomFolder = postProcess.addFolder('Bloom Effect');
-bloomFolder.add(bloomEffect, 'intensity').min(0).max(100).step(0.01).name('intensity');
-bloomFolder.add(bloomEffect, 'width').min(0).max(1).step(0.01).name('width');
-// bloomFolder.add(bloomEffect, 'resolutionScale').min(0).max(1).step(0.01).name('resolutionScale');
-
-bloomFolder.add(bloomEffect.mipmapBlurPass, 'radius').min(0.0).max(100.0).step(0.001).name('radius');
-bloomFolder.add(bloomEffect.luminanceMaterial, 'smoothing').min(0).max(1).step(0.01).name('smoothing');
-bloomFolder.add(bloomEffect.luminanceMaterial, 'threshold').min(0).max(1).step(0.01).name('threshold');
-
-//const colorDepthEffectEffect = new ColorDepthEffect();
-//let colordep = postProcess.addFolder('Color Depth Effect');
-//colordep.add(colorDepthEffectEffect, 'bitDepth').min(8).max(64).step(1).name('bitDepth');
-
-const brightnessContrastEffect = new BrightnessContrastEffect();
-let brightContrast = postProcess.addFolder('Brightness Contrast Effect');
-brightContrast.add(brightnessContrastEffect, 'brightness').min(0).max(10).step(0.01).name('brightness');
-brightContrast.add(brightnessContrastEffect, 'contrast').min(0).max(100).step(0.1).name('contrast');
-
-const toneMappingEffect = new ToneMappingEffect();
-const smaaEffect = new SMAAEffect();
-smaaEffect.applyPreset(SMAAPreset.ULTRA);
-
-composer.addPass(new EffectPass(camera, bloomEffect, smaaEffect, toneMappingEffect, brightnessContrastEffect));
 
 
 /**
@@ -578,16 +587,25 @@ document.body.addEventListener("mouseup", (event) => {
 	// event.stopPropagation();
 });
 
+function teleportPlayerIfOob() {
 
+	if (camera.position.y <= - 25) {
 
+		playerCollider.start.set(0, 0.35, 0);
+		playerCollider.end.set(0, 1, 0);
+		playerCollider.radius = 0.35;
+		camera.position.copy(playerCollider.end);
+		camera.rotation.set(0, 0, 0);
 
+	}
 
+}
 
 function animate() {
 	const deltaTime = Math.min(0.05, clock.getDelta() * 3) / STEPS_PER_FRAME;
 
 	if (characterControls) {
-		characterControls.update(deltaTime, keysPressed);
+		characterControls.update(deltaTime, keysPressed, isFirstPersonView);
 		// playerCollisions();
 		model.position.set(playerCollider.start.x, playerCollider.start.y - 0.5, playerCollider.start.z);
 
@@ -595,9 +613,11 @@ function animate() {
 	}
 	orbitControls.update();
 	videoPlayFlag = interactionUI.paintingInteractions(sceneReady, camera);
+	teleportPlayerIfOob();
 
 
 	composer.render();
+	// depthOfFieldEffect.update(renderer, renderer.getRenderTarget(), deltaTime);
 
 	// console.log(camera.position)
 	requestAnimationFrame(animate);

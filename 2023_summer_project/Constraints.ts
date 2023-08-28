@@ -10,8 +10,8 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-1介绍<br>
 		中華-1介绍<br>
 		`,
-        img_src: "5-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "5-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/5-1-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/5-1-2_u1_v1_normal_compressed.png"
     },
     2: {
         title: "《中華-2》",
@@ -150,8 +150,8 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/10-3_Model_16_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/10-3_Model_16_u1_v1_normal_compressed.png"
     },
     16: {
         title: "《中華-16》",
@@ -170,9 +170,10 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/4_Model_2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/4_Model_2_u1_v1_normal_compressed.png"
     },
+    // TODO 18-22
     18: {
         title: "《中華-18》",
         author: "安顺蜡染博物馆",
