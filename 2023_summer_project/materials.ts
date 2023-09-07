@@ -1,5 +1,6 @@
 import { wrap } from 'gsap';
 import * as THREE from 'three';
+import {gui} from './guiPanel';
 
 /**
  * Loaders
@@ -39,16 +40,26 @@ export const textureLoader = new THREE.TextureLoader(loadingManager);
 export const glassMaterial = new THREE.MeshPhysicalMaterial({
 	color: 0xffffff,
 	transparent: true,
-	opacity: 0.6,
+	opacity: 1,
 	roughness: 0.1,
 	metalness: 0.1,
 	envMapIntensity: 0.5,
 	transmission: 1,
 	thickness: 0.1,
-	// clearcoat: 0.01,
-	// clearcoatRoughness: 0.4,
+	clearcoat: 0.01,
+	clearcoatRoughness: 0.4,
 	refractionRatio: 1.5,
 });
+
+gui.add(glassMaterial, 'roughness').min(0).max(1).step(0.001).name('Glass Roughness');
+gui.add(glassMaterial, 'metalness').min(0).max(1).step(0.001).name('Glass Metalness');
+gui.add(glassMaterial, 'envMapIntensity').min(0).max(1).step(0.001).name('Glass EnvMap Intensity');
+gui.add(glassMaterial, 'transmission').min(0).max(1).step(0.001).name('Glass Transmission');
+gui.add(glassMaterial, 'thickness').min(0).max(1).step(0.001).name('Glass Thickness');
+gui.add(glassMaterial, 'clearcoat').min(0).max(1).step(0.001).name('Glass Clearcoat');
+gui.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.001).name('Glass Clearcoat Roughness');
+// gui.add(glassMaterial, 'refractionRatio').min(0).max(1).step(0.001).name('Glass Refraction Ratio');
+
 
 /**
  *  Blue Glass material
@@ -56,7 +67,7 @@ export const glassMaterial = new THREE.MeshPhysicalMaterial({
 export const blueGlassMaterial = new THREE.MeshPhysicalMaterial({
 	color: 0x87cefa,
 	transparent: true,
-	opacity: 0.8,
+	opacity: 1,
 	roughness: 0,
 	metalness: 0.4,
 	envMapIntensity: 0.5,
@@ -273,6 +284,19 @@ export const aluminumMaterial = new THREE.MeshPhysicalMaterial({
 });
 
 /**
+ * Guan shen zhou material
+ */
+const guanColorTexture = textureLoader.load('/textures/13_u1_v1_diffuse_2_compressed.png'); 
+const guanNormalTexture = textureLoader.load('/textures/13_u1_v1_normal_compressed.png');
+
+export const guanMaterial = new THREE.MeshPhysicalMaterial({
+	map: guanColorTexture,
+	normalMap: guanNormalTexture,
+	side: THREE.FrontSide,
+	envMapIntensity: 0.5,
+});
+
+/**
  * 1F Documentary Video Materials
  */
 const DOCUMENTARY_VIDEO_INDEX = 0;
@@ -280,6 +304,10 @@ export const videos = [
 	{
 		video: document.createElement('video'),
 		source: '/videos/documentary_compressed.mp4',
+	},
+	{
+		video: document.createElement('video'),
+		source: '/videos/姊妹箫v4.mp4',
 	}
 ];
 const videoTextures : THREE.VideoTexture[] = [];
@@ -296,7 +324,7 @@ for (const video of videos) {
 
 
 	videoTextures.push(new THREE.VideoTexture(video.video));
-	videoMaterials.push(new THREE.MeshBasicMaterial({ map: videoTextures[videoTextures.length - 1] }));
+	videoMaterials.push(new THREE.MeshBasicMaterial({ map: videoTextures[videoTextures.length - 1], side: THREE.DoubleSide }));
 }
 
 

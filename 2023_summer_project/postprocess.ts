@@ -1,10 +1,10 @@
 import { HalfFloatType } from "three";
 import * as THREE from 'three';
 import { BlendFunction, SMAAPreset, SelectiveBloomEffect, ToneMappingEffect, ColorDepthEffect, BrightnessContrastEffect, FXAAEffect, SMAAEffect, SSAOEffect, BloomEffect, EffectComposer, EffectPass, RenderPass } from "postprocessing";
-import { HalfFloatType } from "three";
+import { HalfFloatType, Color } from "three";
 import {
     EdgeDetectionMode, BlendFunction, SMAAPreset, Selection, KernelSize, PredicationMode,
-    SelectiveBloomEffect, ToneMappingEffect, ColorDepthEffect, BrightnessContrastEffect, FXAAEffect, SMAAEffect, SSAOEffect,
+    SelectiveBloomEffect, ToneMappingEffect, ColorDepthEffect, BrightnessContrastEffect, FXAAEffect, SMAAEffect, SSAOEffect, OutlineEffect,
     BloomEffect, TextureEffect, DepthOfFieldEffect, VignetteEffect, GodRaysEffect,
     EffectComposer,
     NormalPass, DepthDownsamplingPass, EffectPass, RenderPass
@@ -90,7 +90,7 @@ brightContrast.add(brightnessContrastEffect, 'contrast').min(0).max(100).step(0.
 
 const toneMappingEffect = new ToneMappingEffect();
 const smaaEffect = new SMAAEffect({
-    preset: SMAAPreset.MEDIUM,
+    preset: SMAAPreset.HIGH,
     edgeDetectionMode: EdgeDetectionMode.COLOR,
     predicationMode: PredicationMode.DISABLED
 });
@@ -290,13 +290,103 @@ godRaysFolder.add(group.position, "y", 0.0, 10.0, 0.01).name("light y");
 godRaysFolder.add(group.position, "z", -9.0, 0, 0.01).name("light z");
 godRaysFolder.add(mainLight, "intensity", 0.0, 1000.0, 0.01).name("light intensity");
 
+const outlineEffect = new OutlineEffect(scene, camera, {
+    blendFunction: BlendFunction.SCREEN,
+    multisampling: Math.min(4, renderer.capabilities.maxSamples),
+    edgeStrength: 15,
+    pulseSpeed: 0.0,
+    visibleEdgeColor: 0xffffff,
+    hiddenEdgeColor: 0x22090a,
+    height: 1440,
+    blur: false,
+    xRay: true
+});
+
+outlineEffect.blurPass.enabled = true;
+outlineEffect.blurPass.blurMaterial.kernelSize = KernelSize.MEDIUM;
+
+let outlineFolder = gui.addFolder('Outline Effect');
+outlineFolder.add(outlineEffect, "edgeStrength", 0.0, 10.0, 0.01);
+const color_outline = new Color();
+
+
+const params_outline = {
+    "resolution": outlineEffect.height,
+    "blurriness": 0,
+    "use pattern": false,
+    "pattern scale": 60.0,
+    "pulse speed": outlineEffect.pulseSpeed,
+    "edge strength": outlineEffect.edgeStrength,
+    "visible edge": color_outline.copyLinearToSRGB(outlineEffect.visibleEdgeColor).getHex(),
+    "hidden edge": color_outline.copyLinearToSRGB(outlineEffect.hiddenEdgeColor).getHex(),
+    "x-ray": true,
+    "opacity": outlineEffect.blendMode.opacity.value,
+    "blend mode": outlineEffect.blendMode.blendFunction,
+    "multisampling": outlineEffect.multisampling,
+};
+
+outlineFolder.add(params_outline, "resolution", [240, 360, 480, 720, 1080, 1440]).onChange((value) => {
+
+    outlineEffect.resolution.height = Number(value);
+
+});
+
+outlineFolder.add(params_outline, "multisampling", [0, 2, 4]);
+
+outlineFolder.add(params_outline, "blurriness",
+    KernelSize.VERY_SMALL, KernelSize.HUGE + 1, 1).onChange((value) => {
+
+        outlineEffect.blurPass.enabled = (value > 0);
+        outlineEffect.blurPass.blurMaterial.kernelSize = value - 1;
+
+});
+
+
+outlineFolder.add(params_outline, "edge strength", 0.0, 50.0, 0.01).onChange((value) => {
+
+    outlineEffect.uniforms.get("edgeStrength").value = value;
+
+});
+
+outlineFolder.add(params_outline, "pulse speed", 0.0, 2.0, 0.01).onChange((value) => {
+
+    outlineEffect.pulseSpeed = value;
+
+});
+
+outlineFolder.addColor(params_outline, "visible edge").onChange((value) => {
+
+    outlineEffect.visibleEdgeColor.setHex(value).convertSRGBToLinear();
+
+});
+
+outlineFolder.addColor(params_outline, "hidden edge").onChange((value) => {
+
+    outlineEffect.hiddenEdgeColor.setHex(value).convertSRGBToLinear();
+
+});
+
+outlineFolder.add(outlineEffect, "xRay");
+
+outlineFolder.add(params_outline, "opacity", 0.0, 1.0, 0.01).onChange((value) => {
+
+    outlineEffect.blendMode.opacity.value = value;
+
+});
+
+outlineFolder.add(params_outline, "blend mode", BlendFunction).onChange((value) => {
+
+    outlineEffect.blendMode.setBlendFunction(Number(value));
+
+});
+
 
 
 
 composer.addPass(depthDownsamplingPass);
 composer.addPass(normalPass);
 composer.addPass(new EffectPass(camera, bloomEffect, smaaEffect, ssaoEffect, toneMappingEffect, brightnessContrastEffect, textureEffect,
-    godRaysEffect
+     outlineEffect
 ));
 
-export { scene, camera, composer, renderer, depthOfFieldEffect, mainLight};
+export { scene, camera, composer, renderer, depthOfFieldEffect, outlineEffect, mainLight };

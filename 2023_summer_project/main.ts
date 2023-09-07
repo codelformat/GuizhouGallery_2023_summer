@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 
-import {gui} from './guiPanel';
+import { gui } from './guiPanel';
 import { CharacterControls } from './characterControls_v2.1';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import Stats from 'three/addons/libs/stats.module.js';
 import { Octree } from 'three/examples/jsm/math/Octree.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 // import { OctreeHelper } from 'three/examples/jsm/helpers/OctreeHelper.js';
@@ -13,23 +14,37 @@ import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHel
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader"
 // import WebGPU from 'three/addons/capabilities/WebGPU.js';
 // import WebGPURenderer from 'three/addons/renderers/webgpu/WebGPURenderer.js';
-import {scene, camera, renderer, composer, depthOfFieldEffect, mainLight} from './postprocess';
+import { scene, camera, renderer, composer, depthOfFieldEffect, outlineEffect, mainLight } from './postprocess';
 import { S } from './utils';
-import { Interactions } from './interactions'
-import { loadingManager, textureLoader, sceneReady, videos, videoMaterials, aluminumMaterial, paintedConcreteMaterial, tajMahalGraniteMaterial, plywoodMaterial, concreteMaterial, glassMaterial, whiteWoolMaterial, blueGlassMaterial, dragonMaterial, whiteMarbleMaterial, stoneMarbleMaterial } from './materials'
-import { spotLightHelpers, spotLights } from './lights'
+import { Interactions } from './interactions_v1'
+import { loadingManager, textureLoader, sceneReady, videos, videoMaterials, aluminumMaterial,
+	 paintedConcreteMaterial, tajMahalGraniteMaterial, plywoodMaterial, concreteMaterial, 
+	 glassMaterial, whiteWoolMaterial, blueGlassMaterial, dragonMaterial, whiteMarbleMaterial, 
+	 stoneMarbleMaterial, guanMaterial } from './materials'
+import {
+	spotLightHelpers, spotLights, mouseLight, bagLight, xiaoLight,
+	mouseLight_backup, mouseLight_frontup, bagLight_backup, bagLight_frontup, xiaoLight_backup, xiaoLight_frontup
+} from './lights'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { PAINTINGS_INFO, numOfPoints, DOCUMENTARY_INDEX, DOCUMENTARY_VIDEO_INDEX, sizes } from './Constraints';
+import { PAINTINGS_INFO, numOfPoints, DOCUMENTARY_INDEX, DOCUMENTARY_VIDEO_INDEX, ZIMEIXIAO_VIDEO_INDEX, sizes } from './Constraints';
 import { Reflector } from './Reflector'
+import {
+	acceleratedRaycast, computeBoundsTree, disposeBoundsTree,
+	CENTER, SAH, AVERAGE, MeshBVHVisualizer,
+} from 'three-mesh-bvh'
 
 
+// Add the extension functions
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 /**
  * Base Settings
  */
 const clock = new THREE.Clock();
-let isFirstPersonView:boolean = false;
-
+let isFirstPersonView: boolean = false;
+let character_dir: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
 
 
 const gltfLoader = new GLTFLoader(loadingManager);
@@ -117,6 +132,15 @@ function createSpecularReflection() {
 	scene.add(mirror_2);
 }
 
+/**
+ * Stats
+ */
+const stats = new Stats();
+stats.domElement.style.position = 'absolute';
+stats.domElement.style.top = '0px';
+const container = document.getElementById('container');
+container.appendChild(stats.domElement);
+
 
 /**
  * Points for interations
@@ -146,15 +170,28 @@ let raycast_objects_with_walls: THREE.Mesh[] = [];
 const paintingsMaterials: THREE.MeshPhysicalMaterial[] = [];
 for (let i = 1; i < numOfPoints; i++) {
 	const imgTexture = textureLoader.load(PAINTINGS_INFO[i].img_src);
-	const paintingMaterial = new THREE.MeshStandardMaterial({
-		map: imgTexture,
-		normalMap: new THREE.TextureLoader().load(PAINTINGS_INFO[i].normal_src),
-		transparent: true,
-		opacity: 1,
-		envmapIntensity: 0,
-		side: THREE.DoubleSide,
-	});
-	paintingsMaterials.push(paintingMaterial);
+	if (i != 25) {
+		const paintingMaterial = new THREE.MeshStandardMaterial({
+			map: imgTexture,
+			normalMap: new THREE.TextureLoader().load(PAINTINGS_INFO[i].normal_src),
+			transparent: true,
+			opacity: 1,
+			envmapIntensity: 0,
+			side: THREE.DoubleSide,
+		});
+		paintingsMaterials.push(paintingMaterial);
+	}
+	else {
+		const paintingMaterial = new THREE.MeshStandardMaterial({
+			map: imgTexture,
+			// normalMap: new THREE.TextureLoader().load(PAINTINGS_INFO[i].normal_src),
+			transparent: true,
+			opacity: 1,
+			envmapIntensity: 0,
+			side: THREE.DoubleSide,
+		});
+		paintingsMaterials.push(paintingMaterial);
+	}
 }
 
 /**
@@ -174,6 +211,27 @@ videoPlane.position.set(15, 2.545, -9.563);
 videoPlane.rotation.y = -1.57;
 videoPlane.scale.set(0.556, 0.556, 1);
 scene.add(videoPlane);
+
+// let videoPlayFlag_2F = false;
+const videoPlane_2F = new THREE.Mesh(
+	new THREE.PlaneGeometry(16, 9),
+	videoMaterials[ZIMEIXIAO_VIDEO_INDEX]
+);
+videoPlane_2F.name = '姊妹箫片';
+videoPlane_2F.position.set(30.05, 7.595, -9.48);
+videoPlane_2F.rotation.y = -1.57;
+videoPlane_2F.scale.set(0.56, 0.557, 1);
+scene.add(videoPlane_2F);
+const videoPlaneFolder_2F = gui.addFolder('Video Plane 2F');
+videoPlaneFolder_2F.add(videoPlane_2F.position, 'x').min(20).max(35).step(0.001).name('x');
+videoPlaneFolder_2F.add(videoPlane_2F.position, 'y').min(0).max(10).step(0.001).name('y');
+videoPlaneFolder_2F.add(videoPlane_2F.position, 'z').min(-10).max(0).step(0.001).name('z');
+videoPlaneFolder_2F.add(videoPlane_2F.scale, 'x').min(0).max(100).step(0.001).name('scaleX');
+videoPlaneFolder_2F.add(videoPlane_2F.scale, 'y').min(0).max(100).step(0.001).name('scaleY');
+videoPlaneFolder_2F.add(videoPlane_2F.scale, 'z').min(0).max(100).step(0.001).name('scaleZ');
+videoPlaneFolder_2F.add(videoPlane_2F.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.001).name('rotationX');
+videoPlaneFolder_2F.add(videoPlane_2F.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.001).name('rotationY');
+videoPlaneFolder_2F.add(videoPlane_2F.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.001).name('rotationZ');
 
 let interactionUI: any;
 gltfLoader.setPath('/models/');
@@ -216,44 +274,41 @@ gltfLoader.load('校徽logoV0.1.glb', (gltf) => {
 	});
 });
 
-// gltfLoader.load('zong.glb', (gltf) => {
-// 	scene.add(gltf.scene);
+gltfLoader.load('zong3.glb', (gltf) => {
 
-// 	worldOctree.fromGraphNode(gltf.scene);
-// 	gltf.scene.traverse((child) => {
-// 		console.log(child);
-// 		if (child.name === 'path3') {
-// 			var zong = gui.addFolder('综影')
-// 			child.position.x = 7.55;
-// 			child.position.y = 2;
-// 			child.position.z = -5.55;
-// 			child.rotation.z = -Math.PI / 4;
+	const zongLogo = gltf.scene.children[0];
+	scene.add(zongLogo);
+	console.log(zongLogo);
 
-// 			zong.add(child.position, 'x').min(5).max(10).step(0.001).name('x');
-// 			zong.add(child.position, 'y').min(1).max(6).step(0.01).name('y');
-// 			zong.add(child.position, 'z').min(-8).max(-5).step(0.01).name('z');
-// 			zong.add(child.scale, 'x').min(0).max(100).step(0.001).name('scaleX');
-// 			zong.add(child.scale, 'y').min(0).max(100).step(0.001).name('scaleY');
-// 			zong.add(child.scale, 'z').min(0).max(100).step(0.001).name('scaleZ');
-			
-// 			zong.add(child.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.001).name('rotationX');
-// 			zong.add(child.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.001).name('rotationY');
-// 			zong.add(child.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.001).name('rotationZ');
-// 		}
-// 		if (child.isMesh) {
-// 			child.castShadow = true;
-// 			child.receiveShadow = true;
+	// worldOctree.fromGraphNode(gltf.scene);
+
+	var zong = gui.addFolder('综影')
+	zongLogo.position.x = 7.55;
+	zongLogo.position.y = 1.88;
+	zongLogo.position.z = -5.55;
+	zongLogo.rotation.z = 2.47;
+	zongLogo.scale.set(35, 5, 35);
+	zongLogo.rotation.x = Math.PI / 2;
+	zongLogo.rotation.y = 0;
+
+	zong.add(zongLogo.position, 'x').min(5).max(10).step(0.001).name('x');
+	zong.add(zongLogo.position, 'y').min(1).max(6).step(0.01).name('y');
+	zong.add(zongLogo.position, 'z').min(-8).max(-5).step(0.01).name('z');
+	zong.add(zongLogo.scale, 'x').min(0).max(100).step(0.001).name('scaleX');
+	zong.add(zongLogo.scale, 'y').min(0).max(100).step(0.001).name('scaleY');
+	zong.add(zongLogo.scale, 'z').min(0).max(100).step(0.001).name('scaleZ');
+
+	zong.add(zongLogo.rotation, 'x').min(-Math.PI).max(Math.PI).step(0.001).name('rotationX');
+	zong.add(zongLogo.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.001).name('rotationY');
+	zong.add(zongLogo.rotation, 'z').min(-Math.PI).max(Math.PI).step(0.001).name('rotationZ');
 
 
-// 			if (child.material.map) {
-// 				child.material.map.anisotropy = 4;
-// 			}
-// 		}
-// 	});
-// });
+	zongLogo.castShadow = true;
+	zongLogo.receiveShadow = true;
+});
 
 let collision_objects: THREE.Mesh[] = [];
-gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
+gltfLoader.load('展馆v2.2.2.glb', (gltf) => {
 	let ray_withwall_2f: THREE.Mesh[] = [];
 	let ray_withwall_pics: THREE.Mesh[] = [];
 	scene.add(gltf.scene);
@@ -267,6 +322,8 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 			child.receiveShadow = true;
 			collision_objects.push(child);
 
+			const geometry_child = child.geometry;
+			geometry_child.computeBoundsTree();
 			if (child.material.map) {
 				child.material.map.anisotropy = 4;
 			}
@@ -275,7 +332,7 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 
 		if (child.name === "玻璃幕墙1" || child.name === "玻璃幕墙2" || child.name === "玻璃幕墙3" || child.name === "玻璃幕墙4" || child.name === "玻璃幕墙5"
 			|| child.name === "玻璃幕墙6" || child.name === "玻璃幕墙7" || child.name === "玻璃幕墙8" || child.name === '立方体'
-			|| child.name === "上楼墙" || child.name === "下楼墙" || child.name === "立方体.002") {
+			|| child.name === "后上楼墙" || child.name === "前上楼墙" || child.name[0] === "立") {
 			//collisionGroup.add(child);
 			child.material = glassMaterial;
 			// console.log(child);
@@ -288,18 +345,21 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 		else if (child.name === '听歌识曲墙') {
 			child.material = plywoodMaterial;
 		}
-		else if (child.name === 'X墙' || child.name === '2层y墙' || child.name === '1层y墙' || child.name === '立方体.001' || child.name === '立方体.003' || child.name === '楼梯实心墙') {
+		else if (child.name === 'X墙' || child.name === '斜墙' || child.name === '2层y墙' || child.name === '1层y墙' || child.name === '2F后楼梯墙' || child.name === '立方体.003' || child.name === '楼梯实心墙') {
 			child.material = paintedConcreteMaterial;
 		}
-		else if (child.name === '幕墙装饰'){
+		else if (child.name === '幕墙装饰') {
 			child.material = aluminumMaterial;
 		}
-		else if(child.name === 'logo台1' || child.name === 'logo台2'){
+		else if (child.name === 'logo台1' || child.name === 'logo台2') {
 			console.log('logo position');
 			console.log(child.position);
 		}
 		else if (child.name === '1F楼顶' || child.name === '楼顶') {
 			child.material = concreteMaterial;
+		}
+		else if(child.name[0] === '冠'){
+			child.material = guanMaterial;
 		}
 		else if (child.name === "2F墙1"
 			|| child.name === "2F墙2" || child.name === "2F墙3" || child.name === "2F墙4" || child.name === "2F墙5" || child.name === "2F墙6"
@@ -308,30 +368,13 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 			ray_withwall_2f.push(child);
 			//collisionGroup.add(child);
 		}
-		else if (child.name === "蜡染展台1" || child.name === "蜡染展台2" || child.name === "蜡染展台3" || child.name === '姊妹箫展台' || child.name === '听歌识曲台') {
+		else if (child.name === "蜡染展台1"  || child.name === "蜡染展台2" || child.name === "蜡染展台3" || child.name === '姊妹箫展台' || child.name === '听歌识曲台') {
 			child.material = blueGlassMaterial;
 			//collisionGroup.add(child);
 		}
 		else if (child.name[0] === '竖') {
-			// child.material = dragonMaterial;
-			// Assuming you have a plane mesh named 'planeMesh'
-			const geometry = child.geometry;
 
-			// Assuming the plane is created using PlaneGeometry
-			// PlaneGeometry creates two triangles to represent the plane
-			// The first three vertices are one triangle's vertices
-			const vertex1 = geometry.attributes.position.array.slice(0, 3);
-			const vertex2 = geometry.attributes.position.array.slice(3, 6);
-			const vertex3 = geometry.attributes.position.array.slice(6, 9);
-
-			// Calculate the cross product of two edges of the triangle to get the normal
-			const edge1 = new THREE.Vector3().fromArray(vertex2).sub(new THREE.Vector3().fromArray(vertex1));
-			const edge2 = new THREE.Vector3().fromArray(vertex3).sub(new THREE.Vector3().fromArray(vertex1));
-			const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
-
-
-			const match = child.name.match(/\d+/); // Extracts one or more digits from the name
-			console.log(`Normal Vector ${match[0]}: (${normal.x}, ${normal.y}, ${normal.z})`);
+			const match = child.name.match(/\d+/);
 			if (match) {
 				const pointIndex = Number(match[0]);
 
@@ -387,10 +430,13 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 	});
 	raycast_objects = raycast_obj_temp;
 	raycast_objects.push(videoPlane);
+	raycast_objects.push(videoPlane_2F);
 
-	raycast_objects.splice(22, 1);
-	ray_withwall_pics = raycast_objects;
-	raycast_objects_with_walls = ray_withwall_2f.concat(ray_withwall_pics);
+	// console.log('raycast objs:');
+	// console.log(raycast_objects);
+	// raycast_objects.splice(22, 1);
+	// ray_withwall_pics = raycast_objects;
+	// raycast_objects_with_walls = ray_withwall_2f.concat(ray_withwall_pics);
 
 	for (let i = 0; i < numOfPoints - 1; i++) {
 		raycast_objects[i].material.opacity = 0;
@@ -398,12 +444,158 @@ gltfLoader.load('展馆v1.51-withPics.glb', (gltf) => {
 	}
 
 	mirror_fold2.add(raycast_objects[11].material, 'opacity').min(0).max(1).step(0.01).name('opacity');
-	console.log(raycast_objects);
-	interactionUI = new Interactions(raycast_objects, raycast_objects_with_walls, points, camera);
+	// console.log(raycast_objects);
+
 	createSpecularReflection();
-	animate();
+	// animate();
 });
 
+gltfLoader.load('玻璃墙v2.3.glb', (gltf) => {
+
+	let wall_arr = new Array(69);
+
+	for (let i = 0; i < wall_arr.length; i++) {
+		wall_arr[i] = new Array(2);
+	}
+	// let outlineObjects: THREE.Object3D[] = [];
+	scene.add(gltf.scene);
+
+	worldOctree.fromGraphNode(gltf.scene);
+	raycast_objects_with_walls = raycast_objects.slice();
+
+	raycast_objects_with_walls = raycast_objects_with_walls.filter(function (item) {
+		return item.name !== "Scene"
+	});
+
+	console.log('ray with walls:');
+	console.log(raycast_objects_with_walls);
+	gltf.scene.traverse((child) => {
+		child.material = glassMaterial;
+		raycast_objects_with_walls.push(child);
+		// outlineObjects.push(child);
+		if (child.isMesh) {
+			child.castShadow = true;
+			child.receiveShadow = true;
+			collision_objects.push(child);
+
+
+			if (child.material.map) {
+				child.material.map.anisotropy = 4;
+			}
+
+
+			const geometry_child = child.geometry;
+			geometry_child.computeBoundsTree();
+
+			let match_index = child.name.match(/\d+/);
+			let wall_index = Number(match_index[0]);
+
+			wall_arr[Math.floor((wall_index - 1) / 2)][(wall_index - 1) % 2] = child;
+
+			console.log(wall_index);
+			console.log(wall_arr[Math.floor((wall_index - 1) / 2)][(wall_index - 1) % 2]);
+		}
+	});
+
+
+	console.log(wall_arr);
+	outlineEffect.edgeStrength = 15;
+
+	interactionUI = new Interactions(raycast_objects, raycast_objects_with_walls, wall_arr, camera);
+
+});
+
+
+function fbxLoad() {
+	fbxLoader.setPath('/models/');
+	fbxLoader.load('mouse_2.fbx', (fbx) => {
+
+		const mouseModel = fbx.children[0];
+		console.log(mouseModel);
+		mouseModel.scale.setScalar(0.1);
+		mouseModel.position.set(21, 6.87, -2.97);
+		// worldOctree.fromGraphNode(mouseModel);
+
+
+		mouseModel.castShadow = true;
+		mouseModel.receiveShadow = true;
+
+		let mouseModelFolder = gui.addFolder('Mouse Model');
+		mouseModelFolder.add(mouseModel.position, 'x').min(0).max(30).step(0.001).name('x');
+		mouseModelFolder.add(mouseModel.position, 'y').min(0).max(30).step(0.001).name('y');
+		mouseModelFolder.add(mouseModel.position, 'z').min(-10).max(0).step(0.001).name('z');
+		mouseModelFolder.add(mouseModel.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
+		mouseModelFolder.add(mouseModel.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
+		mouseModelFolder.add(mouseModel.scale, 'z').min(0).max(1).step(0.001).name('scaleZ');
+
+		mouseLight.target = mouseModel;
+		mouseLight_backup.target = mouseModel;
+		mouseLight_frontup.target = mouseModel;
+
+		scene.add(mouseLight_backup);
+		scene.add(mouseLight_frontup);
+		scene.add(mouseLight);
+		scene.add(mouseModel);
+	});
+
+	fbxLoader.load('bag_mod_sim.fbx', (fbx) => {
+
+		const bagModel = fbx.children[0];
+		console.log(bagModel);
+		bagModel.scale.setScalar(0.03);
+		bagModel.position.set(24.11, 6.8, -3.05);
+		// worldOctree.fromGraphNode(mouseModel);
+
+		bagModel.castShadow = true;
+		bagModel.receiveShadow = true;
+
+		let bagModelFolder = gui.addFolder('Bag Model');
+		bagModelFolder.add(bagModel.position, 'x').min(0).max(30).step(0.001).name('x');
+		bagModelFolder.add(bagModel.position, 'y').min(0).max(30).step(0.001).name('y');
+		bagModelFolder.add(bagModel.position, 'z').min(-10).max(0).step(0.001).name('z');
+		bagModelFolder.add(bagModel.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
+		bagModelFolder.add(bagModel.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
+		bagModelFolder.add(bagModel.scale, 'z').min(0).max(1).step(0.001).name('scaleZ');
+
+		bagLight.target = bagModel;
+		bagLight_backup.target = bagModel;
+		bagLight_frontup.target = bagModel;
+
+		scene.add(bagLight_backup);
+		scene.add(bagLight_frontup);
+		scene.add(bagLight);
+		scene.add(bagModel);
+	});
+
+	fbxLoader.load('zimeixiao.fbx', (fbx) => {
+
+		const zimeixiaoModel = fbx.children[0];
+		console.log(zimeixiaoModel);
+		zimeixiaoModel.scale.setScalar(0.03);
+		zimeixiaoModel.position.set(27.05, 6.3, -3.05);
+		// worldOctree.fromGraphNode(mouseModel);
+
+		zimeixiaoModel.castShadow = true;
+		zimeixiaoModel.receiveShadow = true;
+
+		let zimeixiaoModelFolder = gui.addFolder('Zimeixiao Model');
+		zimeixiaoModelFolder.add(zimeixiaoModel.position, 'x').min(0).max(30).step(0.001).name('x');
+		zimeixiaoModelFolder.add(zimeixiaoModel.position, 'y').min(0).max(30).step(0.001).name('y');
+		zimeixiaoModelFolder.add(zimeixiaoModel.position, 'z').min(-10).max(0).step(0.001).name('z');
+		zimeixiaoModelFolder.add(zimeixiaoModel.scale, 'x').min(0).max(1).step(0.001).name('scaleX');
+		zimeixiaoModelFolder.add(zimeixiaoModel.scale, 'y').min(0).max(1).step(0.001).name('scaleY');
+		zimeixiaoModelFolder.add(zimeixiaoModel.scale, 'z').min(0).max(1).step(0.001).name('scaleZ');
+
+		xiaoLight.target = zimeixiaoModel;
+		xiaoLight_backup.target = zimeixiaoModel;
+		xiaoLight_frontup.target = zimeixiaoModel;
+
+		scene.add(xiaoLight_backup);
+		scene.add(xiaoLight_frontup);
+		scene.add(xiaoLight);
+		scene.add(zimeixiaoModel);
+	});
+}
 // Step 4: Listen for Video End Event
 videos[DOCUMENTARY_VIDEO_INDEX].video.addEventListener('ended', () => {
 	// Step 5: Update Object Opacity
@@ -429,9 +621,9 @@ let model: any;
 
 
 
-gltfLoader.load('Character_final.glb', function (gltf) {
+gltfLoader.load('Character.glb', function (gltf) {
 	model = gltf.scene;
-	
+
 
 	model.traverse(function (object: any) {
 		if (object.isMesh) {
@@ -439,7 +631,11 @@ gltfLoader.load('Character_final.glb', function (gltf) {
 			object.receiveShadow = true;
 			object.material.transparent = true;
 			object.material.opacity = 1;
+			const geometry = object.geometry;
+			console.log(geometry);
+			geometry.computeBoundsTree();
 		}
+
 
 	}
 	);
@@ -454,7 +650,11 @@ gltfLoader.load('Character_final.glb', function (gltf) {
 		animationsMap.set(a.name, mixer.clipAction(a))
 	})
 
+
 	characterControls = new CharacterControls(scene, model, mixer, animationsMap, orbitControls, camera, worldOctree, playerCollider, collision_objects, 'Idle')
+
+	fbxLoad();
+	animate();
 });
 
 /**
@@ -509,6 +709,8 @@ document.addEventListener('keydown', (event) => {
 		characterControls.switchRunToggle()
 	} else if (event.key.toLowerCase() == 'f' && videoPlayFlag) {
 		videos[DOCUMENTARY_VIDEO_INDEX].video.play();
+	} else if (event.key.toLowerCase() == 'g' && videoPlayFlag) {
+		videos[ZIMEIXIAO_VIDEO_INDEX].video.play();
 	} else if (event.key.toLowerCase() == 'v') {
 		isFirstPersonView = !isFirstPersonView;
 	}
@@ -608,17 +810,19 @@ function animate() {
 		characterControls.update(deltaTime, keysPressed, isFirstPersonView);
 		// playerCollisions();
 		model.position.set(playerCollider.start.x, playerCollider.start.y - 0.5, playerCollider.start.z);
+		videoPlayFlag = interactionUI.update(sceneReady, character_dir, camera);
 
 		// characterControls.updateCamera();
 	}
 	orbitControls.update();
-	videoPlayFlag = interactionUI.paintingInteractions(sceneReady, camera);
+
 	teleportPlayerIfOob();
 
 
 	composer.render();
 	// depthOfFieldEffect.update(renderer, renderer.getRenderTarget(), deltaTime);
 
+	stats.update();
 	// console.log(camera.position)
 	requestAnimationFrame(animate);
 }

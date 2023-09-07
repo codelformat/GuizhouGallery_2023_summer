@@ -160,8 +160,8 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/8-1-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/8-1-2_u1_v1_normal_compressed.png"
     },
     17: {
         title: "《中華-17》",
@@ -181,8 +181,8 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/10-4-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/10-4-2_u1_v1_normal_compressed.png"
     },
     19: {
         title: "《中華-19》",
@@ -191,8 +191,8 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/10-6-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/10-6-2_u1_v1_normal_compressed.png"
     },
     20: {
         title: "《中華-20》",
@@ -201,8 +201,8 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/10-7-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/10-7-2_u1_v1_normal_compressed.png"
     },
     21: {
         title: "《中華-21》",
@@ -211,8 +211,8 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/10-8-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/10-8-2_u1_v1_normal_compressed.png"
     },
     22: {
         title: "《中華-22》",
@@ -221,17 +221,48 @@ const PAINTINGS_INFO: Record<string, { title: string, author: string, describe: 
 		中華-11介绍<br>
 		中華-11介绍<br>
 		`,
-        img_src: "/textures/9-1-2_u1_v1_diffuse_2_compressed.png",
-        normal_src: "/textures/9-1-2_u1_v1_normal_compressed.png"
+        img_src: "/textures/10-9-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/10-9-2_u1_v1_normal_compressed.png"
     },
+    23:{
+        title: "《飞天》",
+        author: "安顺蜡染博物馆",
+        describe: `
+        飞天介绍<br>
+        飞天介绍<br>
+        `,
+        img_src: "/textures/dragon_Model_5_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/dragon_Model_5_u1_v1_normal_compressed.png"
+    },
+    24:{
+        title: "《华表》",
+        author: "安顺蜡染博物馆",
+        describe: `
+        华表介绍<br>
+        华表介绍<br>
+        `,
+        img_src: "/textures/11-5-2_u1_v1_diffuse_2_compressed.png",
+        normal_src: "/textures/11-5-2_u1_v1_normal_compressed.png"
+    },
+    25:{
+        title: "《孔子》",
+        author: "安顺蜡染博物馆",
+        describe: `
+        孔子介绍<br>
+        孔子介绍<br>
+        `,
+        img_src: "/textures/11-4-diffuse.png",
+        normal_src: "/textures/11-4-diffuse.png"
+    }
 };
 
 /**
  * Constraints
  */
-const numOfPoints = 23;
+const numOfPoints = 26;
 const DOCUMENTARY_INDEX = 23;
 const DOCUMENTARY_VIDEO_INDEX = 0;
+const ZIMEIXIAO_VIDEO_INDEX = 1;
 
 /**
  * Sizes
@@ -242,4 +273,4 @@ const sizes = {
 };
 
 
-export { PAINTINGS_INFO, numOfPoints, DOCUMENTARY_INDEX, DOCUMENTARY_VIDEO_INDEX, sizes }
+export { PAINTINGS_INFO, numOfPoints, DOCUMENTARY_INDEX, DOCUMENTARY_VIDEO_INDEX, ZIMEIXIAO_VIDEO_INDEX, sizes }
