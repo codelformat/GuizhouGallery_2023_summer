@@ -46,7 +46,8 @@ export class CharacterControls {
 
     constructor(scene: THREE.Scene, model: THREE.Group,
         mixer: THREE.AnimationMixer, animationsMap: Map<string, THREE.AnimationAction>,
-        orbitControl: OrbitControls, camera: THREE.PerspectiveCamera, worldOctree: Octree, playerCollider: Capsule, collision_objects: THREE.Mesh[],
+        orbitControl: OrbitControls, camera: THREE.PerspectiveCamera, worldOctree: Octree, playerCollider: Capsule,
+        collision_objects: THREE.Mesh[],
         currentAction: string) {
         this.scene = scene
         this.model = model
@@ -75,10 +76,10 @@ export class CharacterControls {
         this.raycaster.near = 0.1;
         this.camera_raycaster.far = 5;
 
-        const geometry = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 32);
-        const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        this.collider = new THREE.Mesh(geometry, material);
-        this.collider.position.copy(this.playerCollider.end.add(this.playerCollider.start).multiplyScalar(0.5));
+        // const geometry = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 32);
+        // const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        // this.collider = new THREE.Mesh(geometry, material);
+       
         this.orbitControl.minDistance = 1;
         this.orbitControl.maxDistance = 5;
     }
@@ -89,7 +90,7 @@ export class CharacterControls {
 
     public update(delta: number, keysPressed: any, isFirstPersonView: boolean) {
         // Animation Controls
-        if(isFirstPersonView) {
+        if (isFirstPersonView) {
             this.orbitControl.minDistance = 1e-4;
             this.orbitControl.maxDistance = 1e-4;
         }
@@ -144,7 +145,7 @@ export class CharacterControls {
             this.walkDirection.applyAxisAngle(this.rotateAngle, directionOffset)
             // console.log(this.walkDirection);
 
-            const speedDelta = delta *  (play === 'run' ? 36 : 25);
+            const speedDelta = delta * (play === 'run' ? 36 : 25);
 
             this.playerVelocity.add(this.walkDirection.multiplyScalar(speedDelta));
             // run/walk velocity
@@ -173,7 +174,8 @@ export class CharacterControls {
 
 
             this.updateCameraTarget(deltaPosition.x, deltaPosition.z);
-            
+
+            return this.walkDirection;
         }
     }
 
@@ -192,33 +194,33 @@ export class CharacterControls {
             this.playerCollider.translate(result.normal.multiplyScalar(result.depth));
             //
             this.model.position.copy(new THREE.Vector3(this.playerCollider.start.x, this.playerCollider.start.y, this.playerCollider.start.z));
-            this.collider.position.copy(new THREE.Vector3(this.playerCollider.start.x, this.playerCollider.start.y, this.playerCollider.start.z));
+            
             // // this.model.position.y -= 0.35;
         }
     }
 
     private _checkCameraCollision(colliders: THREE.Object3D[], is_first_person: boolean) {
-		if (!is_first_person) {
-			const ray_direction = new THREE.Vector3();
-			ray_direction.subVectors(this.camera.position, this.model.position).normalize();
-			this.camera_raycaster.set(this.model.position, ray_direction);
-			const intersects = this.camera_raycaster.intersectObjects(colliders);
-			if (intersects.length) {
-				// 找到碰撞点后还需要往前偏移一点，不然还是可能会看到穿模
-				const offset = new THREE.Vector3(); // 定义一个向前移动的偏移量
-				offset.copy(ray_direction).multiplyScalar(-0.5); // 计算偏移量，这里的distance是想要向前移动的距离
-				const new_position = new THREE.Vector3().addVectors(intersects[0].point, offset); // 计算新的相机位置
-				this.camera.position.copy(new_position);
+        if (!is_first_person) {
+            const ray_direction = new THREE.Vector3();
+            ray_direction.subVectors(this.camera.position, this.model.position).normalize();
+            this.camera_raycaster.set(this.model.position, ray_direction);
+            const intersects = this.camera_raycaster.intersectObjects(colliders);
+            if (intersects.length) {
+                // 找到碰撞点后还需要往前偏移一点，不然还是可能会看到穿模
+                const offset = new THREE.Vector3(); // 定义一个向前移动的偏移量
+                offset.copy(ray_direction).multiplyScalar(-0.5); // 计算偏移量，这里的distance是想要向前移动的距离
+                const new_position = new THREE.Vector3().addVectors(intersects[0].point, offset); // 计算新的相机位置
+                this.camera.position.copy(new_position);
 
-				this.orbitControl.minDistance = 0;
-			} else {
-				this.orbitControl.minDistance = 2;
-			}
-		}
-	}
+                this.orbitControl.minDistance = 0;
+            } else {
+                this.orbitControl.minDistance = 2;
+            }
+        }
+    }
 
     private updateCameraTarget(moveX: number, moveZ: number) {
-        
+
         // move camera
         this.camera.position.sub(this.orbitControl.target);
         this.cameraTarget.x = this.model.position.x
